@@ -72,7 +72,7 @@ int has_pinged;
 
 typedef struct _host_data {
     int nhost;			// cislo poce
-    GString *percentage, *sent_str, *recv_str, *msg, *shortmsg;
+    GString *hostname, *percentage, *sent_str, *recv_str, *msg, *shortmsg;
     int dummy;
     struct sockaddr addr;
     int sent, recv, rep;
@@ -98,6 +98,8 @@ static host_data *host_malloc()
 
     memset(h, 0, sizeof(host_data));
 
+    h->hostname = g_string_new(NULL);
+
     h->percentage = g_string_new(NULL);
     h->sent_str = g_string_new(NULL);
     h->recv_str = g_string_new(NULL);
@@ -108,6 +110,8 @@ static host_data *host_malloc()
 
 static void host_free(host_data * h)
 {
+    g_string_free(h->hostname, TRUE);
+
     g_string_free(h->percentage, TRUE);
     g_string_free(h->sent_str, TRUE);
     g_string_free(h->recv_str, TRUE);
@@ -504,14 +508,28 @@ void ping_host(host_data * h)
     gchar *msg;
 
     if (h->dummy) {
-	if (h->counter == 0) {
-	    update_host_stats(h);
-	    clear_tmp_flags(h);
+	if (h->counter == 10) {
+	    // recheck the dns (needed for dialup users). this may
+	    // cause bogus trip time measurements if gethostbyname
+	    // takes a long time to execute. once the ip for a host is
+	    // determined, it's not done anymore so i don't care.
+	    struct hostent *he;
+
+	    he = gethostbyname(h->hostname->str);
+	    if (he && he->h_addr_list[0]) {
+		((struct sockaddr_in *) &h->addr)->sin_addr  = *(struct in_addr*)he->h_addr_list[0];
+		h->dummy = 0;
+		update_host_stats(h);
+		clear_tmp_flags(h);
+		update_host_packinfo(h);
+		h->phase = STORM_PHASE;
+	    } else {
+		h->phase = STANDBY_PHASE;
+	    }
 	    h->delay = 0;
 	    h->counter = -1;
-	    h->phase = STANDBY_PHASE;
-	    update_host_packinfo(h);
 	}
+	h->counter++;
 	return;
     }
     
@@ -679,12 +697,14 @@ void update_host_stats(host_data * h)
 }
 
 
-void append_host(struct in_addr ip, char * updatefreq, int dummy)
+void append_host(struct in_addr ip, char * hostname, char * updatefreq, int dummy)
 {
     host_data *h = host_malloc();
 
     ((struct sockaddr_in *) &h->addr)->sin_addr = ip;
     ((struct sockaddr_in *) &h->addr)->sin_family = AF_INET;
+
+    g_string_assign(h->hostname, hostname);
 
     h->dummy = dummy;
 
@@ -718,6 +738,10 @@ void append_host(struct in_addr ip, char * updatefreq, int dummy)
     }
 
     hosts = g_list_append(hosts, h);
+
+    update_host_stats(h);
+    clear_tmp_flags(h);
+    update_host_packinfo(h);
 }
 
 void free_hosts()
@@ -771,13 +795,13 @@ int main(int argc, char **argv)
     for (i = 1; i < argc; i++) {
 	h = gethostbyname(argv[i]);
 	if (h && h->h_addr_list[0]) {
-	    i++;
-	    if (i <= argc) {
-		append_host(*(struct in_addr*)h->h_addr_list[0],argv[i],0);
+	    if (i <= argc-1) {
+		append_host(*(struct in_addr*)h->h_addr_list[0], argv[i], argv[i+1], 0);
+		i++;
 	    }
-	} else {
+	} else if (i <= argc-1) {
 	    memset(&ip, 0, sizeof(ip));
-	    append_host((struct in_addr)ip, 0, 1); // dummy host
+	    append_host((struct in_addr)ip, argv[i], argv[i+1], 1); // dummy host
 	    i++;
 	}
     }
