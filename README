@@ -1,0 +1,33 @@
+GKrellM Multiping Plugin
+Author:             Jindrich Makovicka
+Homepage:           http://kmlinux.fjfi.cvut.cz/~makovick/gkrellm/
+
+install:
+
+    make
+    make install (as root)
+
+--- SECURITY WARNING ---
+
+Multiping needs to open a raw socket for sending and receiving of the
+ICMP packets. For this reason, it consists of two parts - GKrellM
+plugin with normal privileges, and helper application (pinger), which
+is based on the code of linux "ping" and which starts with superuser
+privileges. However, these privileges are dropped immediately, so even
+in the case of a security flaw in the code, the attacker can gain at
+most the access to the raw socket and the should not be able to
+compromise the system.
+
+------------------------
+
+GKrellM Multiping Plugin is copyright (c) 2005 Jindrich Makovicka
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2   
+of the License, or (at your option) any later version.
+ 
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
