@@ -508,7 +508,7 @@ void ping_host(host_data * h)
     gchar *msg;
 
     if (h->dummy) {
-	if (h->counter == 10) {
+	if (h->counter == 120) {
 	    // recheck the dns (needed for dialup users). this may
 	    // cause bogus trip time measurements if gethostbyname
 	    // takes a long time to execute. once the ip for a host is
