@@ -27,6 +27,6 @@ install: pinger multiping.so
 dist:
 	rm -rf $(PKGNAME)-$(VERSION)
 	mkdir $(PKGNAME)-$(VERSION)
-	cp AUTHORS Makefile multiping.c pinger.c decal_multiping_status.xpm Themes ChangeLog $(PKGNAME)-$(VERSION)/
+	cp AUTHORS Makefile multiping.c pinger.c decal_multiping_status.xpm Themes ChangeLog README $(PKGNAME)-$(VERSION)/
 	tar zcf $(PKGNAME)-$(VERSION).tgz $(PKGNAME)-$(VERSION)
 	rm -rf $(PKGNAME)-$(VERSION)
