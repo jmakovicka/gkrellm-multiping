@@ -709,7 +709,7 @@ void update_host_stats(host_data * h)
 }
 
 
-void append_host(struct in_addr ip, char * hostname, char * updatefreq, int dynamic, int dummy)
+void append_host(struct in_addr ip, char * hostname, char * updatefreq, char * dynamic, int dummy)
 {
     host_data *h = host_malloc();
 
@@ -748,6 +748,8 @@ void append_host(struct in_addr ip, char * hostname, char * updatefreq, int dyna
     } else {
 	h->updatefreq = 59;
     }
+
+    h->dynamic = atoi(dynamic) ? 1 : 0;
 
     hosts = g_list_append(hosts, h);
 
@@ -808,12 +810,12 @@ int main(int argc, char **argv)
 	h = gethostbyname(argv[i]);
 	if (h && h->h_addr_list[0]) {
 	    if (i <= argc-3) {
-		append_host(*(struct in_addr*)h->h_addr_list[0], argv[i], argv[i+1], atoi(argv[i+2]) ? 1 : 0, 0);
+		append_host(*(struct in_addr*)h->h_addr_list[0], argv[i], argv[i+1], argv[i+2], 0);
 		i+=2;
 	    }
 	} else if (i <= argc-3) {
 	    memset(&ip, 0, sizeof(ip));
-	    append_host((struct in_addr)ip, argv[i], argv[i+1], atoi(argv[i+2]) ? 1 : 0, 1); // dummy host
+	    append_host((struct in_addr)ip, argv[i], argv[i+1], argv[i+2], 1); // dummy host
 	    i+=2;
 	}
     }
