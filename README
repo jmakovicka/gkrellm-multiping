@@ -12,6 +12,10 @@ Installation:
     make
     make install (as root)
 
+By default, the plugin is installed into
+/usr/local/lib/gkrellm2/plugins . if you want to change it, modify the
+INSTALLDIR variable in the Makefile.
+
 --- SECURITY WARNING ---
 
 Multiping needs to open a raw socket for sending and receiving of the

@@ -30,7 +30,7 @@ ____________________________________________________________________________*/
 #define	CONFIG_NAME	"Multiping"
 #define	STYLE_NAME	"multiping"
 
-#define COMMAND "/usr/local/lib/gkrellm2/plugins/pinger"
+#define COMMAND INSTALLDIR"/pinger"
 
 static GkrellmMonitor *monitor;
 static GkrellmPanel *panel;
