@@ -2,7 +2,12 @@ GKrellM Multiping Plugin
 Author:             Jindrich Makovicka
 Homepage:           http://kmlinux.fjfi.cvut.cz/~makovick/gkrellm/
 
-install:
+Multiping plugin can send pings to several hosts at once and display
+thir round trip time and host status - it indicates lossless
+connection, packet loss and unreachable host with green, red or dark
+LED lights.
+
+Installation:
 
     make
     make install (as root)
