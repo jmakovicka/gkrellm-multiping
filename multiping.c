@@ -247,7 +247,7 @@ display_host(host_data * h, GkrellmStyle * style, GkrellmTextstyle * ts,
 {
     if (h->show_trip) {
 	h->msg_text =
-	    gkrellm_create_decal_text(panel, "9999", ts_alt, style, 0, y, 0);
+	    gkrellm_create_decal_text(panel, "999", ts_alt, style, 0, y, 0);
 
 	h->msg_text->x = gkrellm_chart_width() - h->msg_text->w + time_xoffset;
     }

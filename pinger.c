@@ -541,7 +541,7 @@ void ping_host(host_data * h)
 	return;
     } 
 
-    if (!h->dummy &&h->dynamic && h->counter == 0) {
+    if (!h->dummy && h->dynamic && h->counter == 0) {
 	update_dns(h);
     }
 
