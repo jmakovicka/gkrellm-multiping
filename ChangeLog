@@ -1,3 +1,6 @@
+2.0.9
+	* option for dynamic DNS
+	* some brown paper bag bug fixes
 2.0.8
 	* pinger produced bogus results when fed with a non-existent
 	host - fixed

@@ -1,5 +1,5 @@
 INSTALLDIR = /usr/local/lib/gkrellm2/plugins
-VERSION = 2.0.8
+VERSION = 2.0.9
 PKGNAME = gkrellm-multiping
 #OPT = -march=athlon -O2
 #CC = gcc-3.0
@@ -17,7 +17,7 @@ multiping.so: multiping.o
 	$(CC) -shared -Wl -ggdb `pkg-config gtk+-2.0 --libs`-o multiping.so multiping.o
 
 clean:
-	rm -f *.o *.so core
+	rm -f *.o *.so pinger core
 
 install: pinger multiping.so
 	install -d $(INSTALLDIR)

@@ -51,6 +51,7 @@ static GtkWidget *url_entry;
 static GtkWidget *updatefreq_spin;
 static GtkWidget *multiping_clist;
 static GtkWidget *show_trip_checkbutton;
+static GtkWidget *dynamic_checkbutton;
 
 static GkrellmPiximage *decal_status_image;
 static GdkPixmap *status_pixmap;
@@ -63,7 +64,7 @@ static gint helper_err = 0;
 typedef struct _host_data {
     GString *name, *ip, *percentage, *sent_str, *recv_str, *msg, *shortmsg, *updatefreq;
     GkrellmDecal *name_text, *msg_text, *decal_pix;
-    gboolean show_trip;
+    gboolean show_trip, dynamic;
 } host_data;
 
 static GList *hosts;
@@ -83,6 +84,7 @@ static host_data *host_malloc()
     h->shortmsg = g_string_new("wait");
     h->updatefreq = g_string_new(NULL);
     h->show_trip = 0;
+    h->dynamic = 0;
     return h;
 }
 
@@ -165,6 +167,8 @@ static void launch_pipe()
 	g_string_append(s, h->ip->str);
 	g_string_append(s, " ");
 	g_string_append(s, h->updatefreq->str);
+	g_string_append(s, " ");
+	g_string_append(s, h->dynamic ? "1" : "0");
     }
 
     if (pipe(mypipe)) {
@@ -226,12 +230,13 @@ static void host_draw_msg(host_data * h)
     }
 }
 
-static GList *append_host(GList * list, gchar * name, gchar * ip, gboolean show_trip, gchar * updatefreq)
+static GList *append_host(GList * list, gchar * name, gchar * ip, gboolean show_trip, gboolean dynamic, gchar * updatefreq)
 {
     host_data *h = host_malloc();
     g_string_assign(h->name, name);
     g_string_assign(h->ip, ip);
     h->show_trip = show_trip;
+    h->dynamic = dynamic;
     g_string_assign(h->updatefreq, updatefreq);
     return g_list_append(list, h);
 }
@@ -242,7 +247,7 @@ display_host(host_data * h, GkrellmStyle * style, GkrellmTextstyle * ts,
 {
     if (h->show_trip) {
 	h->msg_text =
-	    gkrellm_create_decal_text(panel, "999", ts_alt, style, 0, y, 0);
+	    gkrellm_create_decal_text(panel, "9999", ts_alt, style, 0, y, 0);
 
 	h->msg_text->x = gkrellm_chart_width() - h->msg_text->w + time_xoffset;
     }
@@ -430,6 +435,7 @@ static void reset_entries()
     gtk_entry_set_text(GTK_ENTRY(label_entry), "");
     gtk_entry_set_text(GTK_ENTRY(url_entry), "");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton), TRUE);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton), FALSE);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin),60);
     return;
 }
@@ -447,6 +453,8 @@ static void cb_selected(GtkWidget * clist, gint row, gint column,
     gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 2, &s);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton), strcmp(s, "yes") == 0);
     gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 3, &s);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton), strcmp(s, "yes") == 0);
+    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 4, &s);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin),atoi(s));
 
     selected_row = row;
@@ -467,14 +475,16 @@ static void cb_unselected(GtkWidget * clist, gint row, gint column,
 
 static void cb_enter(GtkWidget * widget, gpointer data)
 {
-    gchar *buf[4];
+    gchar *buf[5];
     gboolean active;
 
-    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton));
     buf[0] = gkrellm_gtk_entry_get_text(&label_entry);
     buf[1] = gkrellm_gtk_entry_get_text(&url_entry);
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton));
     buf[2] = active ? "yes" : "no";
-    buf[3] = gkrellm_gtk_entry_get_text(&updatefreq_spin);
+    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton));
+    buf[3] = active ? "yes" : "no";
+    buf[4] = gkrellm_gtk_entry_get_text(&updatefreq_spin);
     if ((strlen(buf[0]) == 0) || (strlen(buf[1]) == 0))
 	return;
 
@@ -487,6 +497,8 @@ static void cb_enter(GtkWidget * widget, gpointer data)
 			   buf[2]);
 	gtk_clist_set_text(GTK_CLIST(multiping_clist), selected_row, 3,
 			   buf[3]);
+	gtk_clist_set_text(GTK_CLIST(multiping_clist), selected_row, 4,
+			   buf[4]);
 	gtk_clist_unselect_row(GTK_CLIST(multiping_clist), selected_row,
 			       0);
 	selected_row = -1;
@@ -533,8 +545,8 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     GtkAdjustment *spin_adjust;
     GList *list;
     GtkWidget *info_label;
-    gchar *buf[2];
-    gchar *titles[4] = { "Label", "Hostname / IP Address", "Trip", "Ping Freq" };
+    gchar *buf[5];
+    gchar *titles[5] = { "Label", "Hostname / IP Address", "Trip", "Dynamic", "Ping Freq" };
     gshort i;
     host_data *nt;
 
@@ -581,6 +593,9 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     show_trip_checkbutton = gtk_check_button_new_with_label("Display trip time");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton),TRUE);
     gtk_box_pack_start(GTK_BOX(hbox), show_trip_checkbutton, FALSE, TRUE, 0);
+    dynamic_checkbutton = gtk_check_button_new_with_label("Dynamic DNS");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton),FALSE);
+    gtk_box_pack_start(GTK_BOX(hbox), dynamic_checkbutton, FALSE, TRUE, 0);
 
     hbox = gtk_hbox_new(TRUE, 100);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 5);
@@ -625,7 +640,7 @@ static void create_plugin_config(GtkWidget * tab_vbox)
 				   GTK_POLICY_AUTOMATIC);
     gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 0);
 
-    multiping_clist = gtk_clist_new_with_titles(4, titles);
+    multiping_clist = gtk_clist_new_with_titles(5, titles);
     gtk_clist_set_shadow_type(GTK_CLIST(multiping_clist), GTK_SHADOW_OUT);
     gtk_clist_column_titles_passive(GTK_CLIST(multiping_clist));
     gtk_clist_set_column_justification(GTK_CLIST(multiping_clist), 0,
@@ -647,7 +662,8 @@ static void create_plugin_config(GtkWidget * tab_vbox)
 	buf[0] = nt->name->str;
 	buf[1] = nt->ip->str;
 	buf[2] = nt->show_trip ? "yes" : "no";
-	buf[3] = nt->updatefreq->str;
+	buf[3] = nt->dynamic ? "yes" : "no";
+	buf[4] = nt->updatefreq->str;
 	gtk_clist_append(GTK_CLIST(multiping_clist), buf);
 	gtk_clist_set_row_data(GTK_CLIST(multiping_clist), i, nt);
     }
@@ -670,7 +686,7 @@ static void create_plugin_config(GtkWidget * tab_vbox)
 static void apply_plugin_config()
 {
     gshort row;
-    gchar *s1, *s2, *s3, *s4;
+    gchar *s1, *s2, *s3, *s4, *s5;
     GList *new_hosts;
 
     if (list_modified) {
@@ -683,7 +699,8 @@ static void apply_plugin_config()
 	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 1, &s2);
 	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 2, &s3);
 	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 3, &s4);
-	    new_hosts = append_host(new_hosts, s1, s2, strcmp(s3, "yes") == 0,s4);
+	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 4, &s5);
+	    new_hosts = append_host(new_hosts, s1, s2, strcmp(s3, "yes") == 0,strcmp(s4, "yes") == 0,s5);
 	}
 
 	g_list_foreach(hosts, (GFunc) host_free, NULL);
@@ -716,8 +733,8 @@ static void save_plugin_config(FILE * f)
 	    if (*pt == ' ')
 		*pt = '_';
 
-	fprintf(f, "multiping host %s %s %d %s\n", label, h->ip->str, h->show_trip,
-         h->updatefreq->str);
+	fprintf(f, "multiping host %s %s %d %s %d\n", label, h->ip->str, h->show_trip,
+		h->updatefreq->str, h->dynamic);
 	g_free(label);
     }
 }
@@ -732,6 +749,7 @@ static void load_plugin_config(gchar * arg)
     gchar *pt;
     gshort n;
     gboolean show_trip;
+    gboolean dynamic;
 
     n = sscanf(arg, "%s %[^\n]", plugin_config, item);
 
@@ -746,14 +764,16 @@ static void load_plugin_config(gchar * arg)
 	    label[0] = '\0';
 	    ip[0] = '\0';
 	    updatefreq[0] = '\0';
-	    sscanf(item, "%25s %75s %d %3s", label, ip, &show_trip, updatefreq);
+	    show_trip = TRUE;
+	    dynamic = FALSE;
+	    sscanf(item, "%25s %75s %d %3s %d", label, ip, &show_trip, updatefreq, &dynamic);
 
 	    //when loading, we convert underscores in labels to spaces
 	    for (pt = label; *pt; pt++)
 		if (*pt == '_')
 		    *pt = ' ';
 
-	    hosts = append_host(hosts, label, ip, show_trip, updatefreq);
+	    hosts = append_host(hosts, label, ip, show_trip, dynamic, updatefreq);
 	}
     }
 }
