@@ -546,7 +546,7 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     GList *list;
     GtkWidget *info_label;
     gchar *buf[5];
-    gchar *titles[5] = { "Label", "Hostname / IP Address", "Trip", "Dynamic", "Ping Freq" };
+    gchar *titles[5] = { "Label", "Hostname / IP Address", "Trip", "Dynamic", "Ping int." };
     gshort i;
     host_data *nt;
 
@@ -583,13 +583,16 @@ static void create_plugin_config(GtkWidget * tab_vbox)
 
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 5);
-    label = gtk_label_new("Ping Frequency:");
+    label = gtk_label_new("Ping interval:");
     gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 2);
     spin_adjust = (GtkAdjustment *) gtk_adjustment_new(0,10,3600,1.0,0,0);
     updatefreq_spin = gtk_spin_button_new(spin_adjust,1.0,0);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin),60);
     gtk_box_pack_start(GTK_BOX(hbox), updatefreq_spin, FALSE, TRUE, 0);
+    label = gtk_label_new("seconds");
+//    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 2);
     show_trip_checkbutton = gtk_check_button_new_with_label("Display trip time");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton),TRUE);
     gtk_box_pack_start(GTK_BOX(hbox), show_trip_checkbutton, FALSE, TRUE, 0);
