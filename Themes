@@ -1,0 +1,12 @@
+Style name: multiping
+
+decal_multiping_status.png contains the images of LEDs (dark, green, red)
+bg_panel.png can contain an alternative background
+
+The following additional integer options control the layout:
+
+multiping_vspacing - spacing between the entries in the table
+multiping_hspacing - spacing between the LED and the label
+multiping_text_xoffset - correction of the x-position of timer
+
+use eg. "set_integer multiping_hspacing = 4" in your gkrellmrc file

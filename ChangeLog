@@ -1,0 +1,22 @@
+2.0.3	* patches by Gerard W. Paterson <gerry.patterson@computalog.com>
+	  - per-host ping frequency setup
+	  - various bugfixes
+	* pinger helper restricted to one ping per second to spread load
+
+2.0.2   * trip time display is now optional
+        * DNS resolving
+
+2.0.1
+	* Makefile fix (install -d)
+
+2.0
+	* ported to Gkrellm 2
+
+0.1.2
+	* fixed the pinger helper to handle sigpipe
+	* minor fixes in multiping.c
+	* added an .rc option to adjust time x-offset
+
+0.1.1
+	* changed the status LED pixmap
+	* added options for better theme-ability
