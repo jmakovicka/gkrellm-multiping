@@ -586,7 +586,7 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     label = gtk_label_new("Ping Frequency:");
     gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 2);
-    spin_adjust = (GtkAdjustment *) gtk_adjustment_new(0,10,100,1.0,0,0);
+    spin_adjust = (GtkAdjustment *) gtk_adjustment_new(0,10,3600,1.0,0,0);
     updatefreq_spin = gtk_spin_button_new(spin_adjust,1.0,0);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin),60);
     gtk_box_pack_start(GTK_BOX(hbox), updatefreq_spin, FALSE, TRUE, 0);
