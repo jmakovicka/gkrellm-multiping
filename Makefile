@@ -1,5 +1,5 @@
 INSTALLDIR = /usr/local/lib/gkrellm2/plugins
-VERSION = 2.0.7
+VERSION = 2.0.8
 PKGNAME = gkrellm-multiping
 #OPT = -march=athlon -O2
 #CC = gcc-3.0

@@ -73,6 +73,7 @@ int has_pinged;
 typedef struct _host_data {
     int nhost;			// cislo poce
     GString *percentage, *sent_str, *recv_str, *msg, *shortmsg;
+    int dummy;
     struct sockaddr addr;
     int sent, recv, rep;
     int tmp_sent, tmp_recv, tmp_rep;
@@ -502,6 +503,18 @@ void ping_host(host_data * h)
 {
     gchar *msg;
 
+    if (h->dummy) {
+	if (h->counter == 0) {
+	    update_host_stats(h);
+	    clear_tmp_flags(h);
+	    h->delay = 0;
+	    h->counter = -1;
+	    h->phase = STANDBY_PHASE;
+	    update_host_packinfo(h);
+	}
+	return;
+    }
+    
     if (h->error_flag) {
 	msg = pr_icmph(&h->icp);
 	write_result(h, msg, "Err");
@@ -653,6 +666,11 @@ void update_host_stats(host_data * h)
     g_string_free(s, TRUE);
     g_string_free(s2, TRUE);
 
+    if (h->dummy) {
+	write_result(h, "Dummy host", "##");
+	return;
+    }
+
     if (!h->error_flag) {
 	if (h->tmp_recv == 0)
 	    write_result(h, "Request timed out", "TO");
@@ -661,12 +679,14 @@ void update_host_stats(host_data * h)
 }
 
 
-void append_host(struct in_addr ip, char * updatefreq)
+void append_host(struct in_addr ip, char * updatefreq, int dummy)
 {
     host_data *h = host_malloc();
 
     ((struct sockaddr_in *) &h->addr)->sin_addr = ip;
     ((struct sockaddr_in *) &h->addr)->sin_family = AF_INET;
+
+    h->dummy = dummy;
 
     h->nhost = hostcnt++;
 
@@ -753,11 +773,12 @@ int main(int argc, char **argv)
 	if (h && h->h_addr_list[0]) {
 	    i++;
 	    if (i <= argc) {
-		append_host(*(struct in_addr*)h->h_addr_list[0],argv[i]);
+		append_host(*(struct in_addr*)h->h_addr_list[0],argv[i],0);
 	    }
 	} else {
 	    memset(&ip, 0, sizeof(ip));
-	    append_host((struct in_addr)ip, 0);
+	    append_host((struct in_addr)ip, 0, 1); // dummy host
+	    i++;
 	}
     }
 

@@ -1,3 +1,6 @@
+2.0.8
+	* pinger produced bogus results when fed with a non-existent
+	host - fixed
 2.0.7
 	* fixes
 2.0.6
