@@ -58,6 +58,8 @@ static GdkBitmap *status_mask;
 
 static gint vspacing, hspacing, time_xoffset;
 
+static gint helper_err = 0;
+
 typedef struct _host_data {
     GString *name, *ip, *percentage, *sent_str, *recv_str, *msg, *shortmsg, *updatefreq;
     GkrellmDecal *name_text, *msg_text, *decal_pix;
@@ -117,7 +119,11 @@ static void host_read_pipe(host_data * h)
 {
     gchar buf[512];
 
-    fgets(buf, 512, pinger_pipe);
+    char* res = fgets(buf, 512, pinger_pipe);
+    if (res == 0) {
+	helper_err = 1;
+	return;
+    }
     strip_nl(buf);
     g_string_assign(h->percentage, buf);
     fgets(buf, 512, pinger_pipe);
@@ -297,6 +303,12 @@ static void update_plugin()
 	gkrellm_draw_panel_layers(panel);
     }
 
+    if (helper_err) {
+	kill_pinger();
+	launch_pipe();
+	helper_err = 0;
+    }
+    
     /*  
        if (GK.minute_tick && tooltip) {
        //    if (tooltip->tip_window == NULL || !GTK_WIDGET_VISIBLE(tooltip->tip_window)) {

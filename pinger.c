@@ -40,7 +40,6 @@ ____________________________________________________________________________*/
 #include <ctype.h>
 #include <errno.h>
 #include <math.h>
-#include <pthread.h>
 #include <glib.h>
 
 #define STORM_PHASE 0
@@ -62,20 +61,16 @@ ____________________________________________________________________________*/
 int icmp_socket;
 static int ident;		/* process id to identify our packets */
 static int datalen = DEFDATALEN;
-static long ntransmitted;	/* sequence # for outbound packets = #sent */
+static long ntransmitted = 0;	/* sequence # for outbound packets = #sent */
 u_char outpack[MAXPACKET];
 u_char packet[DEFDATALEN + MAXIPLEN + MAXICMPLEN];
 int packlen = DEFDATALEN + MAXIPLEN + MAXICMPLEN;
 
 int hostcnt = 0;
 
-pthread_t receiver;
-int terminate = 0;
 int has_pinged;
 
 typedef struct _host_data {
-    pthread_mutex_t mutex;
-
     int nhost;			// cislo poce
     GString *percentage, *sent_str, *recv_str, *msg, *shortmsg;
     struct sockaddr addr;
@@ -91,7 +86,7 @@ typedef struct _host_data {
     int delay;
 } host_data;
 
-GList *hosts;
+GList *hosts = NULL;
 
 void update_host_stats(host_data * h);
 void update_host_packinfo(host_data * h);
@@ -99,6 +94,9 @@ void update_host_packinfo(host_data * h);
 static host_data *host_malloc()
 {
     host_data *h = (host_data *) g_malloc(sizeof(host_data));
+
+    memset(h, 0, sizeof(host_data));
+
     h->percentage = g_string_new(NULL);
     h->sent_str = g_string_new(NULL);
     h->recv_str = g_string_new(NULL);
@@ -114,7 +112,6 @@ static void host_free(host_data * h)
     g_string_free(h->recv_str, TRUE);
     g_string_free(h->msg, TRUE);
     g_string_free(h->shortmsg, TRUE);
-    pthread_mutex_destroy(&h->mutex);
     g_free(h);
 }
 
@@ -401,11 +398,12 @@ void pr_pack(char *buf, int cc, struct sockaddr_in *from)
 
     (void) gettimeofday(&tv, (struct timezone *) NULL);
 
+    if (cc < datalen + ICMP_MINLEN)
+	return;
+
     /* Check the IP header */
     ip = (struct ip *) buf;
     hlen = ip->ip_hl << 2;
-    if (cc < datalen + ICMP_MINLEN)
-	return;
 
     /* Now the ICMP part */
     cc -= hlen;
@@ -420,8 +418,7 @@ void pr_pack(char *buf, int cc, struct sockaddr_in *from)
 					     icmp_data[sizeof
 						       (struct timeval)],
 					     compare_nhost)->data;
-
-	pthread_mutex_lock(&h->mutex);
+	if (h == NULL) return; /* host not found */
 
 	++h->recv;
 	++h->tmp_recv;
@@ -442,7 +439,6 @@ void pr_pack(char *buf, int cc, struct sockaddr_in *from)
 	    SET(icp->icmp_seq % MAX_DUP_CHK);
 	    h->dupflag = 0;
 	}
-	pthread_mutex_unlock(&h->mutex);
     } else {
 	switch (icp->icmp_type) {
 	case ICMP_ECHO:
@@ -473,10 +469,8 @@ void pr_pack(char *buf, int cc, struct sockaddr_in *from)
 								timeval)],
 						     compare_nhost)->data;
 		if (h) {
-		    pthread_mutex_lock(&h->mutex);
 		    h->icp = *icp;
 		    h->error_flag = 1;
-		    pthread_mutex_unlock(&h->mutex);
 		}
 
 	    }
@@ -507,8 +501,6 @@ void dump_host(host_data * h)
 void ping_host(host_data * h)
 {
     gchar *msg;
-
-    pthread_mutex_lock(&h->mutex);
 
     if (h->error_flag) {
 	msg = pr_icmph(&h->icp);
@@ -563,15 +555,25 @@ void ping_host(host_data * h)
     h->counter++;
 dontpingyet:
     update_host_packinfo(h);
-    pthread_mutex_unlock(&h->mutex);
 }
 
-void *receiver_routine(void *data)
+gint timeout_callback()
+{
+    has_pinged = 0;
+    hosts = g_list_sort(hosts, compare_delay);
+    g_list_foreach(hosts, (GFunc) ping_host, NULL);
+    hosts = g_list_sort(hosts, compare_nhost2);
+    g_list_foreach(hosts, (GFunc) dump_host, NULL);
+    fflush(stdout);
+    return TRUE;
+}
+
+void receiver()
 {
     int cc;
     struct sockaddr_in from;
     size_t fromlen;
-    struct timeval tv;
+    struct timeval tv,tv_old,tv_new;
     fd_set rfds;
     int avail;
 
@@ -581,49 +583,33 @@ void *receiver_routine(void *data)
     tv.tv_usec = 500000;
     tv.tv_sec = 0;
 
+    gettimeofday(&tv_old, NULL);
     fromlen = sizeof(from);
-    for (; !terminate;) {
+    for (;;) {
 	FD_ZERO(&rfds);
 	FD_SET(icmp_socket, &rfds);
 
-	tv.tv_usec = 500000;
+	tv.tv_usec = 100000;
 	tv.tv_sec = 0;
 
 	avail = select(icmp_socket + 1, &rfds, NULL, NULL, &tv);
 
-	if (!avail)
-	    continue;
-
-	if ((cc = recvfrom(icmp_socket, (char *) packet, packlen, 0,
-			   (struct sockaddr *) &from, &fromlen)) < 0) {
-	    perror("ping: recvfrom");
-	} else {
-	    pr_pack((char *) packet, cc, &from);
+	if (avail) {
+	    if ((cc = recvfrom(icmp_socket, (char *) packet, packlen, 0,
+			       (struct sockaddr *) &from, &fromlen)) < 0) {
+		perror("ping: recvfrom");
+	    } else {
+		pr_pack((char *) packet, cc, &from);
+	    }
+	}
+	gettimeofday(&tv_new, NULL);
+	tvsub(&tv_new, &tv_old);
+	if (tv_new.tv_sec >= 1) {
+	    gettimeofday(&tv_old, NULL);
+	    timeout_callback();
 	}
     }
-    return NULL;
 }
-
-gint timeout_callback()
-{
-    static int first = 1;
-
-    if (first) {
-	pthread_create(&receiver, NULL, receiver_routine, NULL);
-	first = 0;
-    }
-
-    has_pinged = 0;
-
-    hosts = g_list_sort(hosts, compare_delay);
-//    fprintf(stderr, "pinger: =========================================\n");
-    g_list_foreach(hosts, (GFunc) ping_host, NULL);
-    hosts = g_list_sort(hosts, compare_nhost2);
-    g_list_foreach(hosts, (GFunc) dump_host, NULL);
-    fflush(stdout);
-    return TRUE;
-}
-
 
 void update_host_packinfo(host_data * h)
 {
@@ -711,8 +697,6 @@ void append_host(struct in_addr ip, char * updatefreq)
 	h->updatefreq = 59;
     }
 
-    pthread_mutex_init(&h->mutex, NULL);
-
     hosts = g_list_append(hosts, h);
 }
 
@@ -724,23 +708,18 @@ void free_hosts()
 
 void term_signal(int i)
 {
-    terminate = 1;
-    pthread_join(receiver, NULL);
+    free_hosts();
     exit(0);
 }
 
 void pipe_signal(int i)
 {
-    terminate = 1;
-    pthread_join(receiver, NULL);\
     free_hosts();
     exit(0);
 }
 
 void hup_signal(int i)
 {
-    terminate = 1;
-    pthread_join(receiver, NULL);
     free_hosts();
     exit(0);
 }
@@ -777,7 +756,7 @@ int main(int argc, char **argv)
 		append_host(*(struct in_addr*)h->h_addr_list[0],argv[i]);
 	    }
 	} else {
-	    memset(&ip, sizeof(ip), 0);
+	    memset(&ip, 0, sizeof(ip));
 	    append_host((struct in_addr)ip, 0);
 	}
     }
@@ -786,10 +765,9 @@ int main(int argc, char **argv)
     signal(SIGPIPE, pipe_signal);
     signal(SIGHUP, hup_signal);
 
-    for (;;) {
-	timeout_callback();
-	sleep(1);
-    }
+    receiver();
+
+    /* actually unreachable */
 
     free_hosts();
     return 0;

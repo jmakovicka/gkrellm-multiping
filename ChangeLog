@@ -1,3 +1,11 @@
+2.0.6
+	* better removed threading in the helper code at all :)
+2.0.5
+	* converted pinger to GThreads
+2.0.4
+	* restart pinger helper when it crashes
+	  (not a very good solution, but still can't locate the cause)
+
 2.0.3	* patches by Gerard W. Paterson <gerry.patterson@computalog.com>
 	  - per-host ping frequency setup
 	  - various bugfixes
