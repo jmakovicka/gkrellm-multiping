@@ -1,0 +1,5 @@
+gkrellm-multiping (2.0.11) unstable; urgency=low
+
+  * Initial release.
+
+ -- Jindrich Makovicka <makovick@kmlinux.fjfi.cvut.cz>  Sat, 17 Dec 2005 14:44:33 +0100

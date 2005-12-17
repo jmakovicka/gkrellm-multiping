@@ -1,0 +1,3 @@
+#!/bin/sh
+
+chmod 4755 /usr/lib/gkrellm2/exec/pinger
