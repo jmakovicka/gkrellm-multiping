@@ -11,6 +11,14 @@ VERSION = 2.0.11
 PKGNAME = gkrellm-multiping
 CC = gcc
 
+DISTFILES = \
+	AUTHORS Makefile multiping.c pinger.c decal_multiping_status.xpm \
+	Themes ChangeLog README \
+	debian/changelog debian/control debian/copyright \
+	debian/gkrellm-multiping.postinst debian/rules \
+
+DISTDIR = $(PKGNAME)-$(VERSION)
+
 all: pinger multiping.so
 
 pinger: pinger.c
@@ -34,8 +42,8 @@ install: pinger multiping.so
 	echo "pinger helper is installed suid root"
 
 dist:
-	rm -rf $(PKGNAME)-$(VERSION)
-	mkdir $(PKGNAME)-$(VERSION)
-	cp AUTHORS Makefile multiping.c pinger.c decal_multiping_status.xpm Themes ChangeLog README $(PKGNAME)-$(VERSION)/
+	rm -rf $(DISTDIR)
+	mkdir $(DISTDIR) $(DISTDIR)/debian
+	for I in $(DISTFILES) ; do cp "$$I" $(DISTDIR)/$$I ; done
 	tar zcf $(PKGNAME)-$(VERSION).tgz $(PKGNAME)-$(VERSION)
-	rm -rf $(PKGNAME)-$(VERSION)
+	rm -rf $(DISTDIR)
