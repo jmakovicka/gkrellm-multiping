@@ -40,8 +40,6 @@ static gint style_id;
 static FILE *pinger_pipe = NULL;
 static pid_t pinger_pid;
 
-static gshort selected_row;
-
 static gboolean delete_list;
 static gboolean list_modified;
 
@@ -49,9 +47,12 @@ static GtkWidget *plugin_vbox;
 static GtkWidget *label_entry;
 static GtkWidget *url_entry;
 static GtkWidget *updatefreq_spin;
-static GtkWidget *multiping_clist;
 static GtkWidget *show_trip_checkbutton;
 static GtkWidget *dynamic_checkbutton;
+
+static GtkTreeView *multiping_treeview;
+static GtkTreeRowReference *row_reference;
+static GtkTreeSelection	*selection;
 
 static GkrellmPiximage *decal_status_image;
 static GdkPixmap *status_pixmap;
@@ -62,12 +63,23 @@ static gint vspacing, hspacing, time_xoffset;
 static gint helper_err = 0;
 
 typedef struct _host_data {
-    GString *name, *ip, *percentage, *sent_str, *recv_str, *msg, *shortmsg, *updatefreq;
+    GString *name, *ip, *percentage, *sent_str, *recv_str, *msg, *shortmsg;
+    gint updatefreq;
     GkrellmDecal *name_text, *msg_text, *decal_pix;
     gboolean show_trip, dynamic;
 } host_data;
 
 static GList *hosts;
+
+enum {
+    LABEL_COLUMN,
+    HOST_COLUMN,
+    TRIP_COLUMN,
+    DYNAMIC_COLUMN,
+    INTERVAL_COLUMN,
+    DUMMY_COLUMN,
+    N_COLUMNS
+};
 
 static host_data *host_malloc()
 {
@@ -82,7 +94,7 @@ static host_data *host_malloc()
     h->recv_str = g_string_new(NULL);
     h->msg = g_string_new(NULL);
     h->shortmsg = g_string_new("wait");
-    h->updatefreq = g_string_new(NULL);
+    h->updatefreq = 60;
     h->show_trip = 0;
     h->dynamic = 0;
     return h;
@@ -106,7 +118,6 @@ static void host_free(host_data * h)
     g_string_free(h->recv_str, TRUE);
     g_string_free(h->msg, TRUE);
     g_string_free(h->shortmsg, TRUE);
-    g_string_free(h->updatefreq, TRUE);
     g_free(h);
 }
 
@@ -162,11 +173,13 @@ static void launch_pipe()
     gint mypipe[2];
 
     for (i = 0, list = hosts; list; list = list->next, i++) {
+	char freq[5];
 	h = (host_data *) list->data;
 	g_string_append(s, " ");
 	g_string_append(s, h->ip->str);
 	g_string_append(s, " ");
-	g_string_append(s, h->updatefreq->str);
+	sprintf(freq, "%3d", h->updatefreq);
+	g_string_append(s, freq);
 	g_string_append(s, " ");
 	g_string_append(s, h->dynamic ? "1" : "0");
     }
@@ -230,14 +243,14 @@ static void host_draw_msg(host_data * h)
     }
 }
 
-static GList *append_host(GList * list, gchar * name, gchar * ip, gboolean show_trip, gboolean dynamic, gchar * updatefreq)
+static GList *append_host(GList * list, gchar * name, gchar * ip, gboolean show_trip, gboolean dynamic, gint updatefreq)
 {
     host_data *h = host_malloc();
     g_string_assign(h->name, name);
     g_string_assign(h->ip, ip);
     h->show_trip = show_trip;
     h->dynamic = dynamic;
-    g_string_assign(h->updatefreq, updatefreq);
+    h->updatefreq = updatefreq;
     return g_list_append(list, h);
 }
 
@@ -327,7 +340,8 @@ static void update_plugin()
     g_string_free(str, TRUE);
 }
 
-static void setup_display(gboolean first_create)
+static void
+setup_display(gboolean first_create)
 {
     gshort i;
     gint y;
@@ -369,7 +383,8 @@ static void setup_display(gboolean first_create)
     gkrellm_draw_panel_layers(panel);
 }
 
-static void create_plugin(GtkWidget * vbox, gint first_create)
+static void
+create_plugin(GtkWidget * vbox, gint first_create)
 {
     plugin_vbox = vbox;
 
@@ -391,146 +406,196 @@ static void create_plugin(GtkWidget * vbox, gint first_create)
     setup_display(first_create);
 }
 
-static void cb_up(GtkWidget * widget, gpointer drawer)
-{
-    GtkWidget *clist;
-    gshort row;
 
-    clist = multiping_clist;
-    row = selected_row;
-    if (row > 0) {
-	gtk_clist_row_move(GTK_CLIST(clist), row, row - 1);
-	gtk_clist_select_row(GTK_CLIST(clist), row - 1, -1);
-	if (gtk_clist_row_is_visible(GTK_CLIST(clist), row - 1) !=
-	    GTK_VISIBILITY_FULL)
-	    gtk_clist_moveto(GTK_CLIST(clist), row - 1, -1, 0.0, 0.0);
-	selected_row = row - 1;
-	list_modified = TRUE;
-    }
+static void
+change_row_reference(GtkTreeModel *model, GtkTreePath *path)
+{
+    gtk_tree_row_reference_free(row_reference);
+    if (model && path)
+	row_reference = gtk_tree_row_reference_new(model, path);
+    else
+	row_reference = NULL;
 }
 
 
-static void cb_down(GtkWidget * widget, gpointer drawer)
-{
-    GtkWidget *clist;
-    gshort row;
-
-
-    clist = multiping_clist;
-    row = selected_row;
-    if (row >= 0 && row < GTK_CLIST(clist)->rows - 1) {
-	gtk_clist_row_move(GTK_CLIST(clist), row, row + 1);
-	gtk_clist_select_row(GTK_CLIST(clist), row + 1, -1);
-	if (gtk_clist_row_is_visible(GTK_CLIST(clist), row + 1) !=
-	    GTK_VISIBILITY_FULL)
-	    gtk_clist_moveto(GTK_CLIST(clist), row + 1, -1, 1.0, 0.0);
-	selected_row = row + 1;
-	list_modified = TRUE;
-    }
-}
-
-
-static void reset_entries()
+static void
+reset_entries()
 {
     gtk_entry_set_text(GTK_ENTRY(label_entry), "");
     gtk_entry_set_text(GTK_ENTRY(url_entry), "");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton), TRUE);
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton), FALSE);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin),60);
+
+    change_row_reference(NULL, NULL);
+    gtk_tree_selection_unselect_all(selection);
     return;
 }
 
 
-static void cb_selected(GtkWidget * clist, gint row, gint column,
-			GdkEventButton * bevent, gpointer data)
+static host_data *
+host_new_from_model(GtkTreeModel *model, GtkTreeIter *iter)
 {
-    gchar *s;
+    gchar *label;
+    gchar *host;
+    host_data *h;
 
-    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 0, &s);
-    gtk_entry_set_text(GTK_ENTRY(label_entry), s);
-    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 1, &s);
-    gtk_entry_set_text(GTK_ENTRY(url_entry), s);
-    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 2, &s);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton), strcmp(s, "yes") == 0);
-    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 3, &s);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton), strcmp(s, "yes") == 0);
-    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 4, &s);
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin),atoi(s));
+    h = host_malloc();
+    gtk_tree_model_get(model, iter,
+		       LABEL_COLUMN, &label,
+		       HOST_COLUMN, &host,
+		       TRIP_COLUMN, &h->show_trip,
+		       DYNAMIC_COLUMN, &h->dynamic,
+		       INTERVAL_COLUMN, &h->updatefreq,
+		       -1);
 
-    selected_row = row;
+    h->name = g_string_new(label);
+    h->ip = g_string_new(host);
 
-    return;
+    return h;
 }
 
 
-static void cb_unselected(GtkWidget * clist, gint row, gint column,
-			  GdkEventButton * bevent, gpointer data)
+static void
+set_list_store_model_data(GtkListStore *store, GtkTreeIter *iter, host_data *h)
 {
-    selected_row = -1;
-    reset_entries();
+    gtk_list_store_set(store, iter,
+		       LABEL_COLUMN, h->name->str,
+		       HOST_COLUMN, h->ip->str,
+		       TRIP_COLUMN, h->show_trip,
+		       DYNAMIC_COLUMN, h->dynamic,
+		       INTERVAL_COLUMN, h->updatefreq,
+		       DUMMY_COLUMN, "",
+		       -1);
+}
 
-    return;
+static GtkTreeModel *
+create_model(void)
+{
+    GtkListStore *store;
+    GtkTreeIter iter;
+    GList *list;
+    host_data *h;
+
+    store = gtk_list_store_new(N_COLUMNS,
+			       G_TYPE_STRING, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN,
+			       G_TYPE_INT, G_TYPE_STRING);
+    for (list = hosts; list; list = list->next) {
+	h = (host_data *) list->data;
+	gtk_list_store_append(store, &iter);
+	set_list_store_model_data(store, &iter, h);
+    }
+    return GTK_TREE_MODEL(store);
 }
 
 
-static void cb_enter(GtkWidget * widget, gpointer data)
+static void
+cb_selected(GtkWidget * clist, gint row, gint column,
+	    GdkEventButton * bevent, gpointer data)
 {
-    gchar *buf[5];
-    gboolean active;
+    GtkTreeIter iter;
+    GtkTreeModel *model;
+    GtkTreePath *path;
+    host_data *h;
+
+    if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+    {
+	reset_entries();
+	return;
+    }
+    path = gtk_tree_model_get_path(model, &iter);
+    change_row_reference(model, path);
+    gtk_tree_path_free(path);
+
+    h = host_new_from_model(model, &iter);
+
+    gtk_entry_set_text(GTK_ENTRY(label_entry), h->name->str);
+    gtk_entry_set_text(GTK_ENTRY(url_entry), h->ip->str);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton), h->show_trip);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton), h->dynamic);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin), h->updatefreq);
+
+    host_free(h);
+    
+    return;
+}
+
+static void
+cb_enter(GtkWidget * widget, gpointer data)
+{
+    GtkTreeModel *model;
+    GtkTreePath *path = NULL;
+    GtkTreeIter iter;
+    host_data *h;
+
+    gchar *buf[3];
+
+    h = host_malloc();
 
     buf[0] = gkrellm_gtk_entry_get_text(&label_entry);
     buf[1] = gkrellm_gtk_entry_get_text(&url_entry);
-    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton));
-    buf[2] = active ? "yes" : "no";
-    active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton));
-    buf[3] = active ? "yes" : "no";
-    buf[4] = gkrellm_gtk_entry_get_text(&updatefreq_spin);
-    if ((strlen(buf[0]) == 0) || (strlen(buf[1]) == 0))
-	return;
+    h->show_trip = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton));
+    h->dynamic = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton));
+    buf[2] = gkrellm_gtk_entry_get_text(&updatefreq_spin);
 
-    if (selected_row >= 0) {
-	gtk_clist_set_text(GTK_CLIST(multiping_clist), selected_row, 0,
-			   buf[0]);
-	gtk_clist_set_text(GTK_CLIST(multiping_clist), selected_row, 1,
-			   buf[1]);
-	gtk_clist_set_text(GTK_CLIST(multiping_clist), selected_row, 2,
-			   buf[2]);
-	gtk_clist_set_text(GTK_CLIST(multiping_clist), selected_row, 3,
-			   buf[3]);
-	gtk_clist_set_text(GTK_CLIST(multiping_clist), selected_row, 4,
-			   buf[4]);
-	gtk_clist_unselect_row(GTK_CLIST(multiping_clist), selected_row,
-			       0);
-	selected_row = -1;
-    } else
-	gtk_clist_append(GTK_CLIST(multiping_clist), buf);
+    if ((strlen(buf[0]) == 0) || (strlen(buf[1]) == 0)) {
+	host_free(h);
+	return;
+    }
+
+    h->name = g_string_new(buf[0]);
+    h->ip = g_string_new(buf[1]);
+    h->updatefreq = atoi(buf[2]);
+
+    model = gtk_tree_view_get_model(multiping_treeview);
+    if (row_reference)
+    {
+	path = gtk_tree_row_reference_get_path(row_reference);
+	gtk_tree_model_get_iter(model, &iter, path);
+    }
+    else
+    {
+	gtk_list_store_append(GTK_LIST_STORE(model), &iter);
+    }
+
+    set_list_store_model_data(GTK_LIST_STORE(model), &iter, h);
+    host_free(h);
+    reset_entries();
+}
+
+
+static void
+cb_delete(GtkWidget * widget, gpointer data)
+{
+    GtkTreeModel	*model;
+    GtkTreePath		*path;
+    GtkTreeIter		iter;
+
+    if (!row_reference)
+	return;
+    model = gtk_tree_view_get_model(multiping_treeview);
+    path = gtk_tree_row_reference_get_path(row_reference);
+    gtk_tree_model_get_iter(model, &iter, path);
+    gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
 
     reset_entries();
     list_modified = TRUE;
-
-    return;
 }
 
-
-static void cb_delete(GtkWidget * widget, gpointer data)
+static gboolean
+cb_drag_end(GtkWidget *widget, GdkDragContext *context, gpointer data)
 {
     reset_entries();
-
-    if (selected_row >= 0) {
-	gtk_clist_remove(GTK_CLIST(multiping_clist), selected_row);
-	list_modified = TRUE;
-	selected_row = -1;
-    }
-
-    return;
+    list_modified = TRUE;
+    return FALSE;
 }
+
 
 static gchar plugin_about_text[] =
     "GKrellM Multiping version " VERSION "\n\n\n"
     "Copyright (C) 2002 by Jindrich Makovicka\n"
     "makovick@kmlinux.fjfi.cvut.cz\n"
-    "Released under the GPL.\n"
-    "Portions (C) 2001 Tilman \"Trillian\" Sauerbeck";
+    "Released under the GPL.\n";
 
 static void create_plugin_config(GtkWidget * tab_vbox)
 {
@@ -541,17 +606,14 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     GtkWidget *label;
     GtkWidget *scrolled;
     GtkWidget *button;
-    GtkWidget *arrow;
     GtkAdjustment *spin_adjust;
-    GList *list;
     GtkWidget *info_label;
-    gchar *buf[5];
-    gchar *titles[5] = { "Label", "Hostname / IP Address", "Trip", "Dynamic", "Ping int." };
-    gshort i;
-    host_data *nt;
 
+    GtkTreeModel *model;
+    GtkCellRenderer *renderer;
+
+    row_reference = NULL;
     list_modified = FALSE;
-    selected_row = -1;
 
 /* Make a couple of tabs */
     tabs = gtk_notebook_new();
@@ -568,18 +630,15 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 2);
     label_entry = gtk_entry_new();
     gtk_entry_set_max_length(GTK_ENTRY(label_entry), 25);
-//    gtk_widget_set_usize(label_entry, 180, 0);
+    gtk_widget_set_usize(label_entry, 180, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label_entry, FALSE, TRUE, 0);
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 2);
-    label = gtk_label_new("Hostname / IP Address:");
+    label = gtk_label_new("Hostname / IP:");
     gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 2);
     url_entry = gtk_entry_new();
     gtk_entry_set_max_length(GTK_ENTRY(url_entry), 75);
-    gtk_widget_set_usize(url_entry, 475, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), url_entry, FALSE, TRUE, 2);
+    gtk_box_pack_start(GTK_BOX(hbox), url_entry, TRUE, TRUE, 2);
 
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 5);
@@ -591,7 +650,6 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(updatefreq_spin),60);
     gtk_box_pack_start(GTK_BOX(hbox), updatefreq_spin, FALSE, TRUE, 0);
     label = gtk_label_new("seconds");
-//    gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 2);
     show_trip_checkbutton = gtk_check_button_new_with_label("Display trip time");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_trip_checkbutton),TRUE);
@@ -600,22 +658,20 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton),FALSE);
     gtk_box_pack_start(GTK_BOX(hbox), dynamic_checkbutton, FALSE, TRUE, 0);
 
-    hbox = gtk_hbox_new(TRUE, 100);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 5);
-
     hbox2 = gtk_hbutton_box_new();
     gtk_button_box_set_layout(GTK_BUTTON_BOX(hbox2), GTK_BUTTONBOX_START);
     gtk_button_box_set_spacing(GTK_BUTTON_BOX(hbox2), 5);
     gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
 
-    button = gtk_button_new_with_label("Enter");
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) cb_enter, NULL);
-    gtk_box_pack_start(GTK_BOX(hbox2), button, TRUE, TRUE, 0);
 
-    button = gtk_button_new_with_label("Delete");
+    button = gtk_button_new_from_stock(GTK_STOCK_DELETE);
     gtk_signal_connect(GTK_OBJECT(button), "clicked",
 		       (GtkSignalFunc) cb_delete, NULL);
+    gtk_box_pack_start(GTK_BOX(hbox2), button, TRUE, TRUE, 0);
+
+    button = gtk_button_new_from_stock(GTK_STOCK_ADD);;
+    gtk_signal_connect(GTK_OBJECT(button), "clicked",
+		       (GtkSignalFunc) cb_enter, NULL);
     gtk_box_pack_start(GTK_BOX(hbox2), button, TRUE, TRUE, 0);
 
     hbox2 = gtk_hbutton_box_new();
@@ -623,62 +679,56 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     gtk_button_box_set_spacing(GTK_BUTTON_BOX(hbox2), 5);
     gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
 
-    button = gtk_button_new();
-    arrow = gtk_arrow_new(GTK_ARROW_UP, GTK_SHADOW_ETCHED_OUT);
-    gtk_container_add(GTK_CONTAINER(button), arrow);
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) cb_up, NULL);
-    gtk_box_pack_start(GTK_BOX(hbox2), button, TRUE, TRUE, 0);
-
-    button = gtk_button_new();
-    arrow = gtk_arrow_new(GTK_ARROW_DOWN, GTK_SHADOW_ETCHED_OUT);
-    gtk_container_add(GTK_CONTAINER(button), arrow);
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) cb_down, NULL);
-    gtk_box_pack_start(GTK_BOX(hbox2), button, TRUE, TRUE, 0);
-
     scrolled = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
 				   GTK_POLICY_AUTOMATIC,
 				   GTK_POLICY_AUTOMATIC);
     gtk_box_pack_start(GTK_BOX(vbox), scrolled, TRUE, TRUE, 0);
 
-    multiping_clist = gtk_clist_new_with_titles(5, titles);
-    gtk_clist_set_shadow_type(GTK_CLIST(multiping_clist), GTK_SHADOW_OUT);
-    gtk_clist_column_titles_passive(GTK_CLIST(multiping_clist));
-    gtk_clist_set_column_justification(GTK_CLIST(multiping_clist), 0,
-				       GTK_JUSTIFY_LEFT);
-    gtk_clist_set_column_justification(GTK_CLIST(multiping_clist), 1,
-				       GTK_JUSTIFY_LEFT);
+    /* Treeview */
 
-    gtk_clist_set_column_width(GTK_CLIST(multiping_clist), 0, 100);
-    gtk_clist_set_column_width(GTK_CLIST(multiping_clist), 1, 200);
+    model = create_model();
 
-    gtk_signal_connect(GTK_OBJECT(multiping_clist), "select_row",
-		       (GtkSignalFunc) cb_selected, NULL);
-    gtk_signal_connect(GTK_OBJECT(multiping_clist), "unselect_row",
-		       (GtkSignalFunc) cb_unselected, NULL);
-    gtk_container_add(GTK_CONTAINER(scrolled), multiping_clist);
+    multiping_treeview = GTK_TREE_VIEW(gtk_tree_view_new_with_model(model));
+    gtk_tree_view_set_rules_hint(multiping_treeview, TRUE);
+    gtk_tree_view_set_reorderable(multiping_treeview, TRUE);
+    g_signal_connect(G_OBJECT(multiping_treeview), "drag_end",
+		     G_CALLBACK(cb_drag_end), NULL);
 
-    for (i = 0, list = hosts; list; i++, list = list->next) {
-	nt = (host_data *) list->data;
-	buf[0] = nt->name->str;
-	buf[1] = nt->ip->str;
-	buf[2] = nt->show_trip ? "yes" : "no";
-	buf[3] = nt->dynamic ? "yes" : "no";
-	buf[4] = nt->updatefreq->str;
-	gtk_clist_append(GTK_CLIST(multiping_clist), buf);
-	gtk_clist_set_row_data(GTK_CLIST(multiping_clist), i, nt);
-    }
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(multiping_treeview, -1, "Label",
+						renderer,
+						"text", LABEL_COLUMN, NULL);
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(multiping_treeview, -1, "Hostname / IP Address",
+						renderer,
+						"text", HOST_COLUMN, NULL);
+    renderer = gtk_cell_renderer_toggle_new();
+    gtk_tree_view_insert_column_with_attributes(multiping_treeview, -1, "Trip",
+						renderer,
+						"active", TRIP_COLUMN, NULL);
 
-/* Setup */
-    //  vbox = gkrellm_create_framed_tab(tabs, "Setup");
+    renderer = gtk_cell_renderer_toggle_new();
+    gtk_tree_view_insert_column_with_attributes(multiping_treeview, -1, "Dynamic",
+						renderer,
+						"active", DYNAMIC_COLUMN, NULL);
 
-/* Info tab */
-//    vbox = gkrellm_create_framed_tab(tabs, "Info");
-    //    text = gkrellm_scrolled_text(vbox, NULL, GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    //    for (i = 0; i < sizeof(plugin_info_text)/sizeof(gchar *); i++)
-    //  gkrellm_add_info_text_string(text, plugin_info_text[i]);
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(multiping_treeview, -1, "Ping int.",
+						renderer,
+						"text", INTERVAL_COLUMN, NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_tree_view_insert_column_with_attributes(multiping_treeview, -1, "    ",
+						renderer,
+						"text", DUMMY_COLUMN, NULL);
+
+
+    gtk_container_add(GTK_CONTAINER(scrolled), GTK_WIDGET(multiping_treeview));
+    selection = gtk_tree_view_get_selection(multiping_treeview);
+    gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
+    g_signal_connect(G_OBJECT(selection), "changed",
+		     G_CALLBACK(cb_selected), NULL);
 
 /* About tab */
     info_label = gtk_label_new(plugin_about_text);
@@ -688,22 +738,25 @@ static void create_plugin_config(GtkWidget * tab_vbox)
 
 static void apply_plugin_config()
 {
-    gshort row;
-    gchar *s1, *s2, *s3, *s4, *s5;
-    GList *new_hosts;
-
     if (list_modified) {
+	GList *new_hosts;
+	GtkTreeModel *model;
+	GtkTreeIter iter;
+	
 	kill_pinger();
 
 	new_hosts = NULL;
 
-	for (row = 0; row < GTK_CLIST(multiping_clist)->rows; row++) {
-	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 0, &s1);
-	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 1, &s2);
-	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 2, &s3);
-	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 3, &s4);
-	    gtk_clist_get_text(GTK_CLIST(multiping_clist), row, 4, &s5);
-	    new_hosts = append_host(new_hosts, s1, s2, strcmp(s3, "yes") == 0,strcmp(s4, "yes") == 0,s5);
+	model = gtk_tree_view_get_model(multiping_treeview);
+	if (gtk_tree_model_get_iter_first(model, &iter)) {
+	    do {
+		host_data *h;
+		h = host_new_from_model(model, &iter);
+		new_hosts = g_list_append(new_hosts, h);
+		fprintf(stderr, "%s\n", h->name->str);
+		
+	    }
+	    while (gtk_tree_model_iter_next(model, &iter));
 	}
 
 	g_list_foreach(hosts, (GFunc) host_free, NULL);
@@ -736,8 +789,8 @@ static void save_plugin_config(FILE * f)
 	    if (*pt == ' ')
 		*pt = '_';
 
-	fprintf(f, "multiping host %s %s %d %s %d\n", label, h->ip->str, h->show_trip,
-		h->updatefreq->str, h->dynamic);
+	fprintf(f, "multiping host %s %s %d %d %d\n", label, h->ip->str, h->show_trip,
+		h->updatefreq, h->dynamic);
 	g_free(label);
     }
 }
@@ -748,7 +801,7 @@ static void load_plugin_config(gchar * arg)
     gchar item[256];
     gchar label[26];
     gchar ip[76];
-    gchar updatefreq[4];
+    gint updatefreq;
     gchar *pt;
     gshort n;
     gboolean show_trip;
@@ -766,10 +819,9 @@ static void load_plugin_config(gchar * arg)
 
 	    label[0] = '\0';
 	    ip[0] = '\0';
-	    updatefreq[0] = '\0';
 	    show_trip = TRUE;
 	    dynamic = FALSE;
-	    sscanf(item, "%25s %75s %d %3s %d", label, ip, &show_trip, updatefreq, &dynamic);
+	    sscanf(item, "%25s %75s %d %d %d", label, ip, &show_trip, &updatefreq, &dynamic);
 
 	    //when loading, we convert underscores in labels to spaces
 	    for (pt = label; *pt; pt++)
