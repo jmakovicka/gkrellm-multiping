@@ -1,3 +1,10 @@
+gkrellm-multiping (2.0.12) unstable; urgency=low
+
+  * New upstream release
+  * ported to GtkTreeView
+
+ -- Jindrich Makovicka <makovick@gmail.com>  Sun, 15 Oct 2006 20:06:58 +0200
+
 gkrellm-multiping (2.0.11) unstable; urgency=low
 
   * Initial release.
