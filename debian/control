@@ -1,7 +1,7 @@
 Source: gkrellm-multiping
 Section: x11
 Priority: optional
-Maintainer: Jindrich Makovicka <makovick@kmlinux.fjfi.cvut.cz>
+Maintainer: Jindrich Makovicka <makovick@gmail.com>
 Build-Depends: debhelper (>= 4.1.0), gkrellm, libgtk2.0-dev
 Standards-Version: 3.6.1.1
 

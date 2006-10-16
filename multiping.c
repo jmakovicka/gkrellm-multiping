@@ -205,6 +205,8 @@ static void launch_pipe()
 	pinger_pipe = fdopen(mypipe[0], "r");
 	pinger_pid = pid;
     }
+
+    g_string_free(s, TRUE);
 }
 
 /*
@@ -593,8 +595,8 @@ cb_drag_end(GtkWidget *widget, GdkDragContext *context, gpointer data)
 
 static gchar plugin_about_text[] =
     "GKrellM Multiping version " VERSION "\n\n\n"
-    "Copyright (C) 2002 by Jindrich Makovicka\n"
-    "makovick@kmlinux.fjfi.cvut.cz\n"
+    "Copyright (C) 2006 Jindrich Makovicka\n"
+    "makovick@gmail.com\n"
     "Released under the GPL.\n";
 
 static void create_plugin_config(GtkWidget * tab_vbox)
