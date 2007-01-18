@@ -1,3 +1,7 @@
+2.0.13 (2007-01-18)
+	* remove more deprecated functions
+	* fixed broken adding of new entries
+
 2.0.12 (2006-10-15)
 	* GtkTreeView port
 

@@ -372,11 +372,11 @@ setup_display(gboolean first_create)
     gkrellm_panel_create(plugin_vbox, monitor, panel);
 
     if (first_create) {
-	gtk_signal_connect(GTK_OBJECT(panel->drawing_area), "expose_event",
-			   (GtkSignalFunc) panel_expose_event, NULL);
-	gtk_signal_connect(GTK_OBJECT(panel->drawing_area),
-			   "button_release_event",
-			   (GtkSignalFunc) panel_click_event, NULL);
+	g_signal_connect(GTK_OBJECT(panel->drawing_area), "expose_event",
+			 (GtkSignalFunc) panel_expose_event, NULL);
+	g_signal_connect(GTK_OBJECT(panel->drawing_area),
+			 "button_release_event",
+			 (GtkSignalFunc) panel_click_event, NULL);
     }
 
     g_list_foreach(hosts, (GFunc) host_draw_name, NULL);
@@ -563,6 +563,8 @@ cb_enter(GtkWidget * widget, gpointer data)
     set_list_store_model_data(GTK_LIST_STORE(model), &iter, h);
     host_free(h);
     reset_entries();
+
+    list_modified = TRUE;
 }
 
 
@@ -604,7 +606,6 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     GtkWidget *tabs;
     GtkWidget *vbox;
     GtkWidget *hbox;
-    GtkWidget *hbox2;
     GtkWidget *label;
     GtkWidget *scrolled;
     GtkWidget *button;
@@ -632,7 +633,7 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 2);
     label_entry = gtk_entry_new();
     gtk_entry_set_max_length(GTK_ENTRY(label_entry), 25);
-    gtk_widget_set_usize(label_entry, 180, 0);
+    gtk_widget_set_size_request(label_entry, 180, -1);
     gtk_box_pack_start(GTK_BOX(hbox), label_entry, FALSE, TRUE, 0);
 
     label = gtk_label_new("Hostname / IP:");
@@ -660,26 +661,15 @@ static void create_plugin_config(GtkWidget * tab_vbox)
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dynamic_checkbutton),FALSE);
     gtk_box_pack_start(GTK_BOX(hbox), dynamic_checkbutton, FALSE, TRUE, 0);
 
-    hbox2 = gtk_hbutton_box_new();
-    gtk_button_box_set_layout(GTK_BUTTON_BOX(hbox2), GTK_BUTTONBOX_START);
-    gtk_button_box_set_spacing(GTK_BUTTON_BOX(hbox2), 5);
-    gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
-
-
     button = gtk_button_new_from_stock(GTK_STOCK_DELETE);
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) cb_delete, NULL);
-    gtk_box_pack_start(GTK_BOX(hbox2), button, TRUE, TRUE, 0);
+    g_signal_connect(GTK_OBJECT(button), "clicked",
+		     (GtkSignalFunc) cb_delete, NULL);
+    gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
 
     button = gtk_button_new_from_stock(GTK_STOCK_ADD);;
-    gtk_signal_connect(GTK_OBJECT(button), "clicked",
-		       (GtkSignalFunc) cb_enter, NULL);
-    gtk_box_pack_start(GTK_BOX(hbox2), button, TRUE, TRUE, 0);
-
-    hbox2 = gtk_hbutton_box_new();
-    gtk_button_box_set_layout(GTK_BUTTON_BOX(hbox2), GTK_BUTTONBOX_END);
-    gtk_button_box_set_spacing(GTK_BUTTON_BOX(hbox2), 5);
-    gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
+    g_signal_connect(GTK_OBJECT(button), "clicked",
+		     (GtkSignalFunc) cb_enter, NULL);
+    gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
 
     scrolled = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolled),
