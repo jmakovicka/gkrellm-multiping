@@ -527,7 +527,6 @@ int hostname_to_addr(const char *hostname, struct sockaddr *addr)
     }
 
     for (rp = result; rp != NULL; rp = rp->ai_next) {
-	fprintf(stderr, "%d\n", rp->ai_addrlen);
 	if (rp->ai_addr->sa_family == AF_INET) {
 	    *addr = *rp->ai_addr;
 	    ret = 0;
