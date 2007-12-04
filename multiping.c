@@ -745,8 +745,6 @@ static void apply_plugin_config()
 		host_data *h;
 		h = host_new_from_model(model, &iter);
 		new_hosts = g_list_append(new_hosts, h);
-		fprintf(stderr, "%s\n", h->name->str);
-		
 	    }
 	    while (gtk_tree_model_iter_next(model, &iter));
 	}
