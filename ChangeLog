@@ -1,3 +1,7 @@
+2007-12-04  Jindrich Makovicka  <makovick@gmail.com>
+
+	* pinger.c: cleanups, remove signal() and gethostbyname()
+
 2.0.13 (2007-01-18)
 	* remove more deprecated functions
 	* fixed broken adding of new entries
