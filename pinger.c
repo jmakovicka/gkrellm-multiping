@@ -24,7 +24,6 @@ ____________________________________________________________________________*/
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/types.h>
-#include <sys/signal.h>
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -35,6 +34,7 @@ ____________________________________________________________________________*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -69,6 +69,7 @@ int packlen = DEFDATALEN + MAXIPLEN + MAXICMPLEN;
 int hostcnt = 0;
 
 int has_pinged;
+int terminated = 0;
 
 typedef struct _host_data {
     int nhost;			// cislo poce
@@ -504,14 +505,50 @@ void dump_host(host_data * h)
     printf("%s\n", h->shortmsg->str);
 }
 
+int hostname_to_addr(const char *hostname, struct sockaddr *addr)
+{
+    struct addrinfo hints;
+    struct addrinfo *result = 0, *rp = 0;
+    int s, ret = -1;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_INET;      /* Allow IPv4 */
+    hints.ai_socktype = 0;
+    hints.ai_flags = 0;
+    hints.ai_protocol = 0;          /* Any protocol */
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+
+    s = getaddrinfo(hostname, NULL, &hints, &result);
+    if (s != 0) {
+	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+	return -1;
+    }
+
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+	fprintf(stderr, "%d\n", rp->ai_addrlen);
+	if (rp->ai_addr->sa_family == AF_INET) {
+	    *addr = *rp->ai_addr;
+	    ret = 0;
+	    break;
+	}
+    }
+
+    freeaddrinfo(result);
+
+    return ret;
+}
+
 // recheck the dns (needed for dialup users or dynamic DNS)
 int update_dns(host_data *h) 
 {
-    struct hostent *he;
+    int res;
+    struct sockaddr addr;
 
-    he = gethostbyname(h->hostname->str);
-    if (he && he->h_addr_list[0]) {
-	((struct sockaddr_in *) &h->addr)->sin_addr  = *(struct in_addr*)he->h_addr_list[0];
+    res = hostname_to_addr(h->hostname->str, &addr);
+    if (res == 0) {
+	h->addr  = addr;
 	return 0;
     }
 
@@ -628,7 +665,7 @@ void receiver()
 
     gettimeofday(&tv_old, NULL);
     fromlen = sizeof(from);
-    for (;;) {
+    for (;!terminated;) {
 	FD_ZERO(&rfds);
 	FD_SET(icmp_socket, &rfds);
 
@@ -709,12 +746,11 @@ void update_host_stats(host_data * h)
 }
 
 
-void append_host(struct in_addr ip, char * hostname, char * updatefreq, char * dynamic, int dummy)
+void append_host(struct sockaddr addr, char * hostname, char * updatefreq, char * dynamic, int dummy)
 {
     host_data *h = host_malloc();
 
-    ((struct sockaddr_in *) &h->addr)->sin_addr = ip;
-    ((struct sockaddr_in *) &h->addr)->sin_family = AF_INET;
+    h->addr = addr;
 
     g_string_assign(h->hostname, hostname);
 
@@ -764,29 +800,15 @@ void free_hosts()
     g_list_free(hosts);
 }
 
-void term_signal(int i)
+void term_signal(int signum, siginfo_t *info, void *data)
 {
-    free_hosts();
-    exit(0);
-}
-
-void pipe_signal(int i)
-{
-    free_hosts();
-    exit(0);
-}
-
-void hup_signal(int i)
-{
-    free_hosts();
-    exit(0);
+    terminated = 1;
 }
 
 int main(int argc, char **argv)
 {
-    struct in_addr ip;
-    struct hostent *h;
     int i;
+    struct sigaction sig;
 
     struct protoent *proto;
     if (!(proto = getprotobyname("icmp"))) {
@@ -806,27 +828,30 @@ int main(int argc, char **argv)
     fcntl(icmp_socket, F_SETFL, O_NONBLOCK);
     ident = getpid() & 0xFFFF;
 
-    for (i = 1; i < argc; i++) {
-	h = gethostbyname(argv[i]);
-	if (h && h->h_addr_list[0]) {
-	    if (i <= argc-3) {
-		append_host(*(struct in_addr*)h->h_addr_list[0], argv[i], argv[i+1], argv[i+2], 0);
-		i+=2;
-	    }
+    for (i = 1; i < argc - 2; i += 3) {
+	struct sockaddr addr;
+	int res;
+
+	res = hostname_to_addr(argv[i], &addr);
+	if (res == 0) {
+	    append_host(addr, argv[i], argv[i+1], argv[i+2], 0);
 	} else if (i <= argc-3) {
-	    memset(&ip, 0, sizeof(ip));
-	    append_host((struct in_addr)ip, argv[i], argv[i+1], argv[i+2], 1); // dummy host
-	    i+=2;
+	    memset(&addr, 0, sizeof(addr));
+	    addr.sa_family = AF_INET;
+	    append_host(addr, argv[i], argv[i+1], argv[i+2], 1); // dummy host
 	}
     }
 
-    signal(SIGTERM, term_signal);
-    signal(SIGPIPE, pipe_signal);
-    signal(SIGHUP, hup_signal);
+    sigfillset(&sig.sa_mask);
+    sig.sa_flags = SA_SIGINFO | SA_RESTART;    
+    sig.sa_sigaction = term_signal;
+
+    sigaction(SIGINT, &sig, 0);
+    sigaction(SIGTERM, &sig, 0);
+    sigaction(SIGPIPE, &sig, 0);
+    sigaction(SIGHUP, &sig, 0);
 
     receiver();
-
-    /* actually unreachable */
 
     free_hosts();
     return 0;
