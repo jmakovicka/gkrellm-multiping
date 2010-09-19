@@ -651,7 +651,7 @@ void receiver()
 {
     int cc;
     struct sockaddr_in from;
-    size_t fromlen;
+    socklen_t fromlen;
     struct timeval tv,tv_old,tv_new;
     fd_set rfds;
     int avail;
