@@ -48,11 +48,6 @@ ____________________________________________________________________________*/
 #define STORM_PHASE 0
 #define STANDBY_PHASE 1
 
-#define         DEFDATALEN      (64 - 16)        /* default data length */
-#define         MAXIPLEN        60
-#define         MAXICMPLEN      76
-#define         MAXPACKET       (65536 - 60 - 8)        /* max packet size */
-
 #define         MAX_DUP_CHK     (8 * 128)
 
 #define         A(bit)          h->rcvd_tbl[(bit)>>3]   /* identify byte in array */
@@ -63,11 +58,9 @@ ____________________________________________________________________________*/
 
 int icmp_socket, icmp6_socket;
 static int ident;               /* process id to identify our packets */
-static int datalen = DEFDATALEN;
 static long ntransmitted = 0;   /* sequence # for outbound packets = #sent */
-u_char outpack[MAXPACKET];
-u_char packet[DEFDATALEN + MAXIPLEN + MAXICMPLEN];
-int packlen = DEFDATALEN + MAXIPLEN + MAXICMPLEN;
+static u_char outpack[64];
+static u_char packet[1024];
 
 int hostcnt = 0;
 
@@ -200,7 +193,6 @@ static void write_result(host_data * h, gchar * msg, gchar * shortmsg)
 static void pinger4(host_data * h)
 {
     struct icmphdr *icp;
-    int cc;
     int i;
 
     has_pinged = 1;
@@ -223,15 +215,13 @@ static void pinger4(host_data * h)
     *(int *) &outpack[sizeof(*icp)
                       + sizeof(struct timeval)] = h->nhost;
 
-    cc = datalen + 8;           /* skips ICMP portion */
-
     /* compute ICMP checksum here */
-    icp->checksum = in_cksum((u_short *) icp, cc);
+    icp->checksum = in_cksum((u_short *) icp, sizeof(outpack));
 
-    i = sendto(icmp_socket, (char *) outpack, cc, 0,
+    i = sendto(icmp_socket, (char *) outpack, sizeof(outpack), 0,
                (struct sockaddr *)&h->addr, sizeof(h->addr));
 
-    if (i < 0 || i != cc) {
+    if (i < 0 || i != sizeof(outpack)) {
         perror("pinger: sendto");
         write_result(h, "Error sending packet", "Err");
     }
@@ -240,7 +230,6 @@ static void pinger4(host_data * h)
 static void pinger6(host_data * h)
 {
     struct icmp6_hdr *icp;
-    int cc;
     int i;
 
     has_pinged = 1;
@@ -263,12 +252,10 @@ static void pinger6(host_data * h)
     *(int32_t *) &outpack[sizeof(*icp)
                           + sizeof(struct timeval)] = h->nhost;
 
-    cc = datalen + 8;           /* skips ICMP portion */
-
-    i = sendto(icmp6_socket, (char *) outpack, cc, 0,
+    i = sendto(icmp6_socket, (char *) outpack, sizeof(outpack), 0,
                &h->addr.addr, sizeof(struct sockaddr_in6));
 
-    if (i < 0 || i != cc) {
+    if (i < 0 || i != sizeof(outpack)) {
         perror("pinger: sendto");
         write_result(h, "Error sending packet", "Err");
     }
@@ -545,7 +532,7 @@ void pr_pack(char *buf, int cc, struct sockaddr_in *from)
 
     (void) gettimeofday(&tv, (struct timezone *) NULL);
 
-    if (cc < datalen + ICMP_MINLEN)
+    if (cc < sizeof(outpack))
         return;
 
     /* Check the IP header */
@@ -634,7 +621,7 @@ void pr_pack6(char *buf, int cc, struct sockaddr_in6 *from)
 
     (void) gettimeofday(&tv, (struct timezone *) NULL);
 
-    if (cc < datalen + ICMP_MINLEN)
+    if (cc < sizeof(outpack))
         return;
 
     /* Now the ICMP part */
@@ -897,7 +884,7 @@ void receiver()
             if (FD_ISSET(icmp_socket, &rfds)) {
                 struct sockaddr_in from;
                 fromlen = sizeof(from);
-                if ((cc = recvfrom(icmp_socket, (char *) packet, packlen, 0,
+                if ((cc = recvfrom(icmp_socket, (char *) packet, sizeof(packet), 0,
                                    (struct sockaddr *) &from, &fromlen)) < 0) {
                     perror("pinger: recvfrom");
                 } else {
@@ -906,7 +893,7 @@ void receiver()
             } else if (FD_ISSET(icmp6_socket, &rfds)) {
                 struct sockaddr_in6 from;
                 fromlen = sizeof(from);
-                if ((cc = recvfrom(icmp6_socket, (char *) packet, packlen, 0,
+                if ((cc = recvfrom(icmp6_socket, (char *) packet, sizeof(packet), 0,
                                    (struct sockaddr *) &from, &fromlen)) < 0) {
                     perror("pinger: recvfrom");
                 } else {
