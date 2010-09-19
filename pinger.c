@@ -888,7 +888,8 @@ void receiver()
                 fromlen = sizeof(from);
                 if ((cc = recvfrom(icmp_socket, (char *) packet, sizeof(packet), 0,
                                    (struct sockaddr *) &from, &fromlen)) < 0) {
-                    perror("pinger: recvfrom");
+                    if (errno != EAGAIN)
+                        perror("pinger: recvfrom");
                 } else {
                     pr_pack((char *) packet, cc, &from);
                 }
@@ -897,7 +898,8 @@ void receiver()
                 fromlen = sizeof(from);
                 if ((cc = recvfrom(icmp6_socket, (char *) packet, sizeof(packet), 0,
                                    (struct sockaddr *) &from, &fromlen)) < 0) {
-                    perror("pinger: recvfrom");
+                    if (errno != EAGAIN)
+                        perror("pinger: recvfrom");
                 } else {
                     pr_pack6((char *) packet, cc, &from);
                 }
