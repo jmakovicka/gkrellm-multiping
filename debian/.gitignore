@@ -1,0 +1,5 @@
+gkrellm-multiping
+*.debhelper
+*.debhelper.log
+*.substvars
+files
