@@ -1,17 +1,18 @@
-gkrellm-multiping (2.0.13) unstable; urgency=low
+gkrellm-multiping (2.0.14-1) unstable; urgency=low
 
   * New upstream release
+  * ipv6 support
 
- -- Jindrich Makovicka <makovick@gmail.com>  Thu, 18 Jan 2007 08:20:12 +0100
+ -- Jindrich Makovicka <makovick@gmail.com>  Sun, 19 Sep 2010 12:44:06 +0200
 
-gkrellm-multiping (2.0.12) unstable; urgency=low
+gkrellm-multiping (2.0.12-1) unstable; urgency=low
 
   * New upstream release
   * ported to GtkTreeView
 
  -- Jindrich Makovicka <makovick@gmail.com>  Sun, 15 Oct 2006 20:06:58 +0200
 
-gkrellm-multiping (2.0.11) unstable; urgency=low
+gkrellm-multiping (2.0.11-1) unstable; urgency=low
 
   * Initial release.
 
