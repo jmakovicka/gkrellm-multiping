@@ -59,7 +59,7 @@ ____________________________________________________________________________*/
 int icmp_socket, icmp6_socket;
 static int ident;               /* process id to identify our packets */
 static long ntransmitted = 0;   /* sequence # for outbound packets = #sent */
-static u_char outpack[64];
+static u_char outpack[56];
 static u_char packet[1024];
 
 int hostcnt = 0;
