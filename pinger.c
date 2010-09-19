@@ -668,7 +668,16 @@ void pr_pack6(char *buf, int cc, struct sockaddr_in6 *from)
                 struct ip6_hdr *orig_ip = (struct ip6_hdr *) (icp + 1);
                 struct icmp6_hdr *orig_icmp = (struct icmp6_hdr *) (orig_ip + 1);
 
-                if (!IN6_ARE_ADDR_EQUAL (&orig_ip->ip6_dst, &h->addr.in6)
+                char *data = (char *)(orig_icmp + 1);
+
+                h = (host_data *) g_list_find_custom(
+                    hosts,
+                    (int *)&data[sizeof(struct timeval)],
+                    compare_nhost)->data;
+
+                if (h == NULL) return;
+
+                if (!IN6_ARE_ADDR_EQUAL (&orig_ip->ip6_dst, &h->addr.in6.sin6_addr)
                     || orig_ip->ip6_nxt != IPPROTO_ICMPV6
                     || orig_icmp->icmp6_type != ICMP6_ECHO_REQUEST
                     || orig_icmp->icmp6_id != ident)
@@ -676,15 +685,8 @@ void pr_pack6(char *buf, int cc, struct sockaddr_in6 *from)
                     return;
                 }
 
-                char *data = (char *)(orig_icmp + 1);
-                h = (host_data *) g_list_find_custom(
-                    hosts,
-                    (int *) &data[sizeof(struct timeval)],
-                    compare_nhost)->data;
-                if (h) {
-                    h->icp.v6 = *icp;
-                    h->error_flag = 1;
-                }
+                h->icp.v6 = *icp;
+                h->error_flag = 1;
 
             }
         }
