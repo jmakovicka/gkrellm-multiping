@@ -85,7 +85,7 @@ typedef struct _host_data {
         struct icmp v4;
         struct icmp6_hdr v6;
     } icmp;
-    char rcvd_tbl[MAX_DUP_CHK / 8];
+    u_char rcvd_tbl[MAX_DUP_CHK / 8];
     int phase;
     int counter;
     int updatefreq;
@@ -144,10 +144,10 @@ static gint compare_delay(gconstpointer a, gconstpointer b)
  * in_cksum --
  *      Checksum routine for Internet Protocol family headers (C Version)
  */
-static int in_cksum(u_short * addr, int len)
+static int in_cksum(u_char * addr, int len)
 {
     int nleft = len;
-    u_short *w = addr;
+    u_short *w = (u_short *)addr;
     int sum = 0;
     u_short answer = 0;
 
@@ -253,9 +253,9 @@ static void pinger4(host_data * h)
     set_packet_data(icp->icmp_data, h);
 
     /* compute ICMP checksum here */
-    icp->icmp_cksum = in_cksum((u_short *) icp, sizeof(outpack));
+    icp->icmp_cksum = in_cksum(outpack, sizeof(outpack));
 
-    i = sendto(icmp_socket, (char *) outpack, sizeof(outpack), 0,
+    i = sendto(icmp_socket, outpack, sizeof(outpack), 0,
                (struct sockaddr *)&h->addr, sizeof(h->addr));
 
     if (i < 0 || i != sizeof(outpack)) {
@@ -285,7 +285,7 @@ static void pinger6(host_data * h)
 
     set_packet_data(outpack + sizeof(*icmp), h);
 
-    i = sendto(icmp6_socket, (char *) outpack, sizeof(outpack), 0,
+    i = sendto(icmp6_socket, outpack, sizeof(outpack), 0,
                &h->addr.addr, sizeof(struct sockaddr_in6));
 
     if (i < 0 || i != sizeof(outpack)) {
@@ -554,7 +554,7 @@ static void tvsub(struct timeval *out, struct timeval *in)
 }
 
 // process a received packet
-void pr_pack(char *buf, int cc, struct sockaddr_in *from)
+void pr_pack(u_char *buf, int cc, struct sockaddr_in *from)
 {
     struct icmp *icp;
     struct ip *ip;
@@ -623,7 +623,7 @@ void pr_pack(char *buf, int cc, struct sockaddr_in *from)
 }
 
 // process a received packet
-void pr_pack6(char *buf, int cc, struct sockaddr_in6 *from)
+void pr_pack6(u_char *buf, int cc, struct sockaddr_in6 *from)
 {
     struct icmp6_hdr *icmp;
     u_char *data;
@@ -883,22 +883,22 @@ void receiver()
             if (FD_ISSET(icmp_socket, &rfds)) {
                 struct sockaddr_in from;
                 fromlen = sizeof(from);
-                if ((cc = recvfrom(icmp_socket, (char *) packet, sizeof(packet), 0,
+                if ((cc = recvfrom(icmp_socket, packet, sizeof(packet), 0,
                                    (struct sockaddr *) &from, &fromlen)) < 0) {
                     if (errno != EAGAIN)
                         perror("pinger: recvfrom");
                 } else {
-                    pr_pack((char *) packet, cc, &from);
+                    pr_pack(packet, cc, &from);
                 }
             } else if (FD_ISSET(icmp6_socket, &rfds)) {
                 struct sockaddr_in6 from;
                 fromlen = sizeof(from);
-                if ((cc = recvfrom(icmp6_socket, (char *) packet, sizeof(packet), 0,
+                if ((cc = recvfrom(icmp6_socket, packet, sizeof(packet), 0,
                                    (struct sockaddr *) &from, &fromlen)) < 0) {
                     if (errno != EAGAIN)
                         perror("pinger: recvfrom");
                 } else {
-                    pr_pack6((char *) packet, cc, &from);
+                    pr_pack6(packet, cc, &from);
                 }
             }
         }
