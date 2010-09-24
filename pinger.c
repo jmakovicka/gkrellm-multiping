@@ -38,6 +38,7 @@ ____________________________________________________________________________*/
 #include <string.h>
 #include <assert.h>
 #include <signal.h>
+#include <poll.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
@@ -857,30 +858,22 @@ void receiver()
 {
     int cc;
     socklen_t fromlen;
-    struct timeval tv,tv_old,tv_new;
-    fd_set rfds;
+    struct timeval tv_old,tv_new;
     int avail;
+    struct pollfd fds[2];
 
-    FD_ZERO(&rfds);
-    FD_SET(icmp_socket, &rfds);
-    FD_SET(icmp6_socket, &rfds);
-
-    tv.tv_usec = 500000;
-    tv.tv_sec = 0;
+    fds[0].fd = icmp_socket;
+    fds[1].fd = icmp6_socket;
 
     gettimeofday(&tv_old, NULL);
     for (;!terminated;) {
-        FD_ZERO(&rfds);
-        FD_SET(icmp_socket, &rfds);
-        FD_SET(icmp6_socket, &rfds);
+        fds[0].events = fds[1].events = POLLIN;
+        fds[0].revents = fds[1].revents = 0;
 
-        tv.tv_usec = 100000;
-        tv.tv_sec = 0;
+        avail = poll(fds, 2, 100);
 
-        avail = select(icmp6_socket + 1, &rfds, NULL, NULL, &tv);
-
-        if (avail) {
-            if (FD_ISSET(icmp_socket, &rfds)) {
+        if (avail > 0) {
+            if (fds[0].revents & POLLIN) {
                 struct sockaddr_in from;
                 fromlen = sizeof(from);
                 if ((cc = recvfrom(icmp_socket, packet, sizeof(packet), 0,
@@ -890,7 +883,8 @@ void receiver()
                 } else {
                     pr_pack(packet, cc, &from);
                 }
-            } else if (FD_ISSET(icmp6_socket, &rfds)) {
+            }
+            if (fds[1].revents & POLLIN) {
                 struct sockaddr_in6 from;
                 fromlen = sizeof(from);
                 if ((cc = recvfrom(icmp6_socket, packet, sizeof(packet), 0,
@@ -901,6 +895,8 @@ void receiver()
                     pr_pack6(packet, cc, &from);
                 }
             }
+        } else if (avail < 0) {
+            perror("poll");
         }
         gettimeofday(&tv_new, NULL);
         tvsub(&tv_new, &tv_old);
