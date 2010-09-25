@@ -239,6 +239,8 @@ static void pinger4(host_data * h)
 
     has_pinged = 1;
 
+    CLR(ntransmitted % MAX_DUP_CHK);
+
     icp = (struct icmp *) outpack;
     icp->icmp_type = ICMP_ECHO;
     icp->icmp_code = 0;
@@ -248,8 +250,6 @@ static void pinger4(host_data * h)
 
     h->sent++;
     h->tmp_sent++;
-
-    CLR(icp->icmp_seq % MAX_DUP_CHK);
 
     set_packet_data(icp->icmp_data, h);
 
@@ -272,6 +272,8 @@ static void pinger6(host_data * h)
 
     has_pinged = 1;
 
+    CLR(ntransmitted % MAX_DUP_CHK);
+
     icmp = (struct icmp6_hdr *) outpack;
     icmp->icmp6_type = ICMP6_ECHO_REQUEST;
     icmp->icmp6_code = 0;
@@ -281,8 +283,6 @@ static void pinger6(host_data * h)
 
     h->sent++;
     h->tmp_sent++;
-
-    CLR(icmp->icmp6_seq % MAX_DUP_CHK);
 
     set_packet_data(outpack + sizeof(*icmp), h);
 
