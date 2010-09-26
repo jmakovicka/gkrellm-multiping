@@ -51,7 +51,7 @@ ____________________________________________________________________________*/
 
 #define         MAX_DUP_CHK     (8 * 128)
 
-#define         A(bit)          h->rcvd_tbl[(bit)>>3]   /* identify byte in array */
+#define         A(bit)          rcvd_tbl[(bit)>>3]      /* identify byte in array */
 #define         B(bit)          (1 << ((bit) & 0x07))   /* identify bit in byte */
 #define         SET(bit)        (A(bit) |= B(bit))
 #define         CLR(bit)        (A(bit) &= (~B(bit)))
@@ -60,6 +60,7 @@ ____________________________________________________________________________*/
 int icmp_socket, icmp6_socket;
 static int ident;               /* process id to identify our packets */
 static long ntransmitted = 0;   /* sequence # for outbound packets = #sent */
+static u_char rcvd_tbl[MAX_DUP_CHK / 8];
 static u_char outpack[56];
 static u_char packet[1024];
 
@@ -86,7 +87,6 @@ typedef struct _host_data {
         struct icmp v4;
         struct icmp6_hdr v6;
     } icmp;
-    u_char rcvd_tbl[MAX_DUP_CHK / 8];
     int phase;
     int counter;
     int updatefreq;
