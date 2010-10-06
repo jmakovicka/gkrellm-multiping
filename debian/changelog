@@ -1,9 +1,9 @@
-gkrellm-multiping (2.0.14-1) unstable; urgency=low
+gkrellm-multiping (2.0.15-1) unstable; urgency=low
 
   * New upstream release
   * ipv6 support
 
- -- Jindrich Makovicka <makovick@gmail.com>  Sun, 19 Sep 2010 12:44:06 +0200
+ -- Jindrich Makovicka <makovick@gmail.com>  Wed, 06 Oct 2010 19:18:25 +0200
 
 gkrellm-multiping (2.0.12-1) unstable; urgency=low
 

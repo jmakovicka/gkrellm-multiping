@@ -7,7 +7,7 @@ endif
 ifeq ($(HELPERDIR),)
 HELPERDIR=$(INSTALLROOT)/lib/gkrellm2/exec
 endif
-VERSION = 2.0.14
+VERSION = 2.0.15
 PKGNAME = gkrellm-multiping
 CC = gcc
 

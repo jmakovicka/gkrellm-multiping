@@ -1,6 +1,8 @@
-2007-12-04  Jindrich Makovicka  <makovick@gmail.com>
+2.0.15 (2010-10-06)
+	* IPv6 support
 
-	* pinger.c: cleanups, remove signal() and gethostbyname()
+2.0.14 (2007-12-04)
+	* cleanups, remove signal() and gethostbyname()
 
 2.0.13 (2007-01-18)
 	* remove more deprecated functions

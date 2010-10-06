@@ -2,7 +2,7 @@
 
         gkrellm multiping plugin
 
-        Copyright (C) 2002 Jindrich Makovicka
+        Copyright (C) 2010 Jindrich Makovicka
 
         This program is free software; you can redistribute it and/or modify
         it under the terms of the GNU General Public License as published by
@@ -597,7 +597,7 @@ cb_drag_end(GtkWidget *widget, GdkDragContext *context, gpointer data)
 
 static gchar plugin_about_text[] =
     "GKrellM Multiping version " VERSION "\n\n\n"
-    "Copyright (C) 2006 Jindrich Makovicka\n"
+    "Copyright (C) 2010 Jindrich Makovicka\n"
     "makovick@gmail.com\n"
     "Released under the GPL.\n";
 
