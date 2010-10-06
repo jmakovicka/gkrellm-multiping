@@ -57,17 +57,17 @@ ____________________________________________________________________________*/
 #define         CLR(bit)        (A(bit) &= (~B(bit)))
 #define         TST(bit)        (A(bit) & B(bit))
 
-int icmp_socket, icmp6_socket;
+static int icmp_socket, icmp6_socket;
 static int ident;               /* process id to identify our packets */
 static long ntransmitted = 0;   /* sequence # for outbound packets = #sent */
 static u_char rcvd_tbl[MAX_DUP_CHK / 8];
 static u_char outpack[56];
 static u_char packet[1024];
 
-int hostcnt = 0;
+static int hostcnt = 0;
 
-int has_pinged;
-int terminated = 0;
+static int has_pinged;
+static int terminated = 0;
 
 typedef struct _host_data {
     int nhost;                  // cislo poce
@@ -93,10 +93,10 @@ typedef struct _host_data {
     int delay;
 } host_data;
 
-GList *hosts = NULL;
+static GList *hosts = NULL;
 
-void update_host_stats(host_data * h);
-void update_host_packinfo(host_data * h);
+static void update_host_stats(host_data * h);
+static void update_host_packinfo(host_data * h);
 
 static host_data *host_malloc()
 {
@@ -555,7 +555,7 @@ static void tvsub(struct timeval *out, struct timeval *in)
 }
 
 // process a received packet
-void pr_pack(u_char *buf, int cc, struct sockaddr_in *from)
+static void pr_pack(u_char *buf, int cc, struct sockaddr_in *from)
 {
     struct icmp *icp;
     struct ip *ip;
@@ -624,7 +624,7 @@ void pr_pack(u_char *buf, int cc, struct sockaddr_in *from)
 }
 
 // process a received packet
-void pr_pack6(u_char *buf, int cc, struct sockaddr_in6 *from)
+static void pr_pack6(u_char *buf, int cc, struct sockaddr_in6 *from)
 {
     struct icmp6_hdr *icmp;
     u_char *data;
@@ -701,7 +701,7 @@ void clear_tmp_flags(host_data * h)
     h->error_flag = 0;
 }
 
-void dump_host(host_data * h)
+static void dump_host(host_data * h)
 {
     printf("%s\n", h->percentage->str);
     printf("%s\n", h->sent_str->str);
@@ -710,7 +710,7 @@ void dump_host(host_data * h)
     printf("%s\n", h->shortmsg->str);
 }
 
-int hostname_to_addr(const char *hostname, struct sockaddr *addr)
+static int hostname_to_addr(const char *hostname, struct sockaddr *addr)
 {
     struct addrinfo hints;
     struct addrinfo *result = 0, *rp = 0;
@@ -753,13 +753,13 @@ int hostname_to_addr(const char *hostname, struct sockaddr *addr)
 }
 
 // recheck the dns (needed for dialup users or dynamic DNS)
-int update_dns(host_data *h)
+static int update_dns(host_data *h)
 {
     return hostname_to_addr(h->hostname->str, &h->addr.addr);
 }
 
 
-void ping_host(host_data * h)
+static void ping_host(host_data * h)
 {
     gchar *msg;
 
@@ -843,7 +843,7 @@ dontpingyet:
     update_host_packinfo(h);
 }
 
-gint timeout_callback()
+static void timeout_callback()
 {
     has_pinged = 0;
     hosts = g_list_sort(hosts, compare_delay);
@@ -851,10 +851,9 @@ gint timeout_callback()
     hosts = g_list_sort(hosts, compare_nhost2);
     g_list_foreach(hosts, (GFunc) dump_host, NULL);
     fflush(stdout);
-    return TRUE;
 }
 
-void receiver()
+static void receiver()
 {
     int cc;
     socklen_t fromlen;
@@ -907,13 +906,13 @@ void receiver()
     }
 }
 
-void update_host_packinfo(host_data * h)
+static void update_host_packinfo(host_data * h)
 {
     g_string_sprintf(h->sent_str, "%d", h->sent);
     g_string_sprintf(h->recv_str, "%d", h->recv);
 }
 
-void update_host_stats(host_data * h)
+static void update_host_stats(host_data * h)
 {
     long trip;
     GString *s = g_string_new(NULL);
@@ -962,7 +961,8 @@ void update_host_stats(host_data * h)
 }
 
 
-void append_host(struct sockaddr *addr, char * hostname, char * updatefreq, char * dynamic, int dummy)
+static void append_host(struct sockaddr *addr, char * hostname,
+                        char * updatefreq, char * dynamic, int dummy)
 {
     host_data *h = host_malloc();
 
@@ -1013,13 +1013,13 @@ void append_host(struct sockaddr *addr, char * hostname, char * updatefreq, char
     update_host_packinfo(h);
 }
 
-void free_hosts()
+static void free_hosts()
 {
     g_list_foreach(hosts, (GFunc) host_free, NULL);
     g_list_free(hosts);
 }
 
-void term_signal(int signum, siginfo_t *info, void *data)
+static void term_signal(int signum, siginfo_t *info, void *data)
 {
     terminated = 1;
 }
