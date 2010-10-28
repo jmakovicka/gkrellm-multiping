@@ -296,10 +296,10 @@ static gint panel_click_event(GtkWidget * widget, GdkEventButton * ev)
 
 static gint panel_expose_event(GtkWidget * widget, GdkEventExpose * ev)
 {
-    gdk_draw_pixmap(widget->window,
-                    widget->style->fg_gc[GTK_WIDGET_STATE(widget)],
-                    panel->pixmap, ev->area.x, ev->area.y, ev->area.x,
-                    ev->area.y, ev->area.width, ev->area.height);
+    gdk_draw_drawable(gtk_widget_get_window(widget),
+                      gtk_widget_get_style(widget)->fg_gc[gtk_widget_get_state(widget)],
+                      panel->pixmap, ev->area.x, ev->area.y, ev->area.x,
+                      ev->area.y, ev->area.width, ev->area.height);
     return FALSE;
 }
 
@@ -373,10 +373,10 @@ setup_display(gboolean first_create)
 
     if (first_create) {
         g_signal_connect(GTK_OBJECT(panel->drawing_area), "expose_event",
-                         (GtkSignalFunc) panel_expose_event, NULL);
+                         G_CALLBACK(panel_expose_event), NULL);
         g_signal_connect(GTK_OBJECT(panel->drawing_area),
                          "button_release_event",
-                         (GtkSignalFunc) panel_click_event, NULL);
+                         G_CALLBACK(panel_click_event), NULL);
     }
 
     g_list_foreach(hosts, (GFunc) host_draw_name, NULL);
@@ -663,12 +663,12 @@ static void create_plugin_config(GtkWidget * tab_vbox)
 
     button = gtk_button_new_from_stock(GTK_STOCK_DELETE);
     g_signal_connect(GTK_OBJECT(button), "clicked",
-                     (GtkSignalFunc) cb_delete, NULL);
+                     G_CALLBACK(cb_delete), NULL);
     gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
 
     button = gtk_button_new_from_stock(GTK_STOCK_ADD);;
     g_signal_connect(GTK_OBJECT(button), "clicked",
-                     (GtkSignalFunc) cb_enter, NULL);
+                     G_CALLBACK(cb_enter), NULL);
     gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
 
     scrolled = gtk_scrolled_window_new(NULL, NULL);
