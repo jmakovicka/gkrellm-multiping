@@ -29,7 +29,7 @@ multiping.o: multiping.c decal_multiping_status.xpm
 	-DHELPERDIR=\"$(HELPERDIR)\" -DVERSION=\"$(VERSION)\" -c multiping.c
 
 multiping.so: multiping.o
-	$(CC) -shared -Wl -Wl,--as-needed multiping.o `pkg-config gtk+-2.0 --libs` -o multiping.so
+	$(CC) -shared -Wl,--as-needed multiping.o `pkg-config gtk+-2.0 --libs` -o multiping.so
 
 clean:
 	rm -f *.o *.so pinger core
