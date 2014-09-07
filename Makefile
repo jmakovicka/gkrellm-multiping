@@ -22,14 +22,15 @@ DISTDIR = $(PKGNAME)-$(VERSION)
 all: pinger multiping.so
 
 pinger: pinger.c
-	$(CC) -Wl,--as-needed pinger.c `pkg-config glib-2.0 --cflags` $(OPT) -lpthread `pkg-config glib-2.0 --libs` -Wall -o pinger
+	$(CC) -Wl,--as-needed pinger.c $(shell pkg-config glib-2.0 --cflags) \
+		$(OPT) -lpthread $(shell pkg-config glib-2.0 --libs) -Wall -o pinger
 
 multiping.o: multiping.c decal_multiping_status.xpm
-	$(CC) -Wall -fPIC -Wall `pkg-config gtk+-2.0 --cflags` $(OPT) \
+	$(CC) -Wall -fPIC -Wall $(shell pkg-config gtk+-2.0 --cflags) $(OPT) \
 	-DHELPERDIR=\"$(HELPERDIR)\" -DVERSION=\"$(VERSION)\" -c multiping.c
 
 multiping.so: multiping.o
-	$(CC) -shared -Wl,--as-needed multiping.o `pkg-config gtk+-2.0 --libs` -o multiping.so
+	$(CC) -shared -Wl,--as-needed multiping.o $(shell pkg-config gtk+-2.0 --libs) -o multiping.so
 
 clean:
 	rm -f *.o *.so pinger core
