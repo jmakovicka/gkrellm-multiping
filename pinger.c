@@ -369,8 +369,8 @@ static gchar *pr_icmph(struct icmp *icp)
             break;
 #endif
         default:
-            g_string_sprintf(s, "Dest Unreachable, Unknown Code: %d",
-                             icp->icmp_code);
+            g_string_printf(s, "Dest Unreachable, Unknown Code: %d",
+                            icp->icmp_code);
             break;
         }
         break;
@@ -392,11 +392,11 @@ static gchar *pr_icmph(struct icmp *icp)
             g_string_assign(s, "Redirect Type of Service and Host");
             break;
         default:
-            g_string_sprintf(s, "Redirect, Bad Code: %d", icp->icmp_code);
+            g_string_printf(s, "Redirect, Bad Code: %d", icp->icmp_code);
             break;
         }
-        g_string_sprintfa(s, " (New addr: %s)",
-                          inet_ntoa(icp->icmp_gwaddr));
+        g_string_append_printf(s, " (New addr: %s)",
+                               inet_ntoa(icp->icmp_gwaddr));
         break;
     case ICMP_ECHO:
         g_string_assign(s, "Echo Request");
@@ -411,14 +411,14 @@ static gchar *pr_icmph(struct icmp *icp)
             g_string_assign(s, "Frag reassembly time exceeded");
             break;
         default:
-            g_string_sprintf(s, "Time exceeded, Bad Code: %d",
-                             icp->icmp_code);
+            g_string_printf(s, "Time exceeded, Bad Code: %d",
+                            icp->icmp_code);
             break;
         }
         break;
     case ICMP_PARAMETERPROB:
-        g_string_sprintf(s, "Parameter problem: IP address = %s",
-                         inet_ntoa(icp->icmp_gwaddr));
+        g_string_printf(s, "Parameter problem: IP address = %s",
+                        inet_ntoa(icp->icmp_gwaddr));
         break;
     case ICMP_TIMESTAMP:
         g_string_assign(s, "Timestamp");
@@ -447,7 +447,7 @@ static gchar *pr_icmph(struct icmp *icp)
         break;
 #endif
     default:
-        g_string_sprintf(s, "Bad ICMP type: %d", icp->icmp_type);
+        g_string_printf(s, "Bad ICMP type: %d", icp->icmp_type);
     }
 
     c = s->str;
@@ -487,8 +487,8 @@ static gchar *pr_icmph6(struct icmp6_hdr *icmp)
             g_string_assign(s, "Bad port");
             break;
         default:
-            g_string_sprintf(s, "Dest Unreachable, Unknown Code: %d",
-                             icmp->icmp6_code);
+            g_string_printf(s, "Dest Unreachable, Unknown Code: %d",
+                            icmp->icmp6_code);
             break;
         }
         break;
@@ -505,8 +505,8 @@ static gchar *pr_icmph6(struct icmp6_hdr *icmp)
             g_string_assign(s, "Frag reassembly time exceeded");
             break;
         default:
-            g_string_sprintf(s, "Time exceeded, Bad Code: %d",
-                             icmp->icmp6_code);
+            g_string_printf(s, "Time exceeded, Bad Code: %d",
+                            icmp->icmp6_code);
             break;
         }
         break;
@@ -522,17 +522,17 @@ static gchar *pr_icmph6(struct icmp6_hdr *icmp)
             g_string_assign(s, "Unrecognized IPv6 option");
             break;
         default:
-            g_string_sprintf(s, "Parameter problem, Unknown Code: %d",
-                             icmp->icmp6_code);
+            g_string_printf(s, "Parameter problem, Unknown Code: %d",
+                            icmp->icmp6_code);
             break;
         }
         break;
     case ICMP6_PACKET_TOO_BIG:
-        g_string_sprintf(s, "Packet too big, Bad Code: %d",
-                         icmp->icmp6_code);
+        g_string_printf(s, "Packet too big, Bad Code: %d",
+                        icmp->icmp6_code);
         break;
     default:
-        g_string_sprintf(s, "Bad ICMP type: %d", icmp->icmp6_type);
+        g_string_printf(s, "Bad ICMP type: %d", icmp->icmp6_type);
     }
 
     c = s->str;
@@ -908,8 +908,8 @@ static void receiver()
 
 static void update_host_packinfo(host_data * h)
 {
-    g_string_sprintf(h->sent_str, "%d", h->sent);
-    g_string_sprintf(h->recv_str, "%d", h->recv);
+    g_string_printf(h->sent_str, "%d", h->sent);
+    g_string_printf(h->recv_str, "%d", h->recv);
 }
 
 static void update_host_stats(host_data * h)
@@ -919,7 +919,7 @@ static void update_host_stats(host_data * h)
     GString *s2 = g_string_new(NULL);
 
     if (h->tmp_sent > 0) {
-        g_string_sprintf(s, "%d", h->tmp_recv * 100 / h->tmp_sent);
+        g_string_printf(s, "%d", h->tmp_recv * 100 / h->tmp_sent);
         g_string_assign(h->percentage, s->str);
     } else {
         g_string_assign(h->percentage, "");
@@ -928,19 +928,19 @@ static void update_host_stats(host_data * h)
     if (h->tmp_recv > 0) {
         trip = h->tmp_tsum / (h->tmp_recv + h->tmp_rep);
         if (trip >= 1000000) {
-            g_string_sprintf(s, "%ld.%03ld s", trip / 1000000,
-                             (trip % 1000000) / 1000);
-            g_string_sprintf(s2, ">s");
+            g_string_printf(s, "%ld.%03ld s", trip / 1000000,
+                            (trip % 1000000) / 1000);
+            g_string_printf(s2, ">s");
         } else if (trip >= 10000) {
-            g_string_sprintf(s, "%ld.%03ld ms", trip / 1000, trip % 1000);
-            g_string_sprintf(s2, "%ld", trip / 1000);
+            g_string_printf(s, "%ld.%03ld ms", trip / 1000, trip % 1000);
+            g_string_printf(s2, "%ld", trip / 1000);
         } else if (trip >= 1000) {
-            g_string_sprintf(s, "%ld.%03ld ms", trip / 1000, trip % 1000);
-            g_string_sprintf(s2, "%ld.%01ld", trip / 1000,
-                             (trip % 1000) / 100);
+            g_string_printf(s, "%ld.%03ld ms", trip / 1000, trip % 1000);
+            g_string_printf(s2, "%ld.%01ld", trip / 1000,
+                            (trip % 1000) / 100);
         } else {
-            g_string_sprintf(s, "0.%01ld ms", trip / 100);
-            g_string_sprintf(s2, "0.%01ld", trip / 100);
+            g_string_printf(s, "0.%01ld ms", trip / 100);
+            g_string_printf(s2, "0.%01ld", trip / 100);
         }
         write_result(h, s->str, s2->str);
     }
